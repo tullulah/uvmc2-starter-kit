@@ -301,10 +301,10 @@ UVM2_GAME_LIBS   = $(patsubst -l%,%,$(filter -l%,$(UVM2_LDLIBS)))
 # respond, and the frame sits at 98% of the beam's ceiling (39.51 ms of sweep in a 40.25 ms
 # frame). Turn it off with UVM2_DUAL_CORE=0.
 #
-# OPEN: the MUSIC does not play in dual core. One clear suspect is the sequencer's pacing —
-# the single-core path advances the track by ELAPSED VECTREX TIME (several ticks if the frame
-# blows through the budget, and dkong spends 59,000 cycles against 30,000), while core 1
-# advances it ONCE per frame.
+# MUSIC IN DUAL CORE: RESOLVED. It was once open ("the music does not play in dual core"),
+# with the sequencer's pacing as the suspect: single core advanced the track by ELAPSED
+# VECTREX TIME and core 1 once per frame. Core 1 now advances it by elapsed time too
+# (uvm2_core1.c), and .vmus music plays on the console in dual core — dkong and the ports.
 #
 #   make uvm2 UVM2_DUAL_CORE=0
 UVM2_DUAL_CORE ?= 1

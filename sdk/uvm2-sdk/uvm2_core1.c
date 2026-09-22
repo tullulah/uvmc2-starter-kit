@@ -288,9 +288,9 @@ static void core1_main(void)
          * the 50 Hz budget is worth two frames of music, and dkong spends 59,000 cycles
          * against 30,000. One tick per frame plays the track at the average speed.
          *
-         * This is NOT a diagnosis of "the music does not play in dual core", which is still
-         * open: it is that the two paths had different semantics for the same thing, and
-         * that has to be equalised before anything can be compared. */
+         * Written while "the music does not play in dual core" was still open, as the step
+         * that equalised the two paths before comparing them. That issue is closed: .vmus
+         * music plays in dual core on the console (dkong, the ports). */
         s_audio_acc += cycles;
         while (s_audio_acc >= UVM2_AUDIO_CYCLES) {
             s_audio_acc -= UVM2_AUDIO_CYCLES;
