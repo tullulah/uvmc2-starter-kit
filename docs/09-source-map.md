@@ -107,7 +107,16 @@ Only what `game/tacscan` needs is here (~52 files). Other AAE games need more.
 
 ## `examples/hello_uvmc2/`
 
-100 lines of C and a 50-line Makefile. Copy this to start.
+| file | ~lines | what it is |
+|---|---|---|
+| `src/main.c` | 175 | The whole game: frame loop, ship, thrust, text, and an on-screen readout of the raw controller values. Copy this to start. |
+| `Makefile` | 55 | The smallest build that produces a `.um2`. |
+| `tools/text_metrics.c` | 80 | **How wide is a string?** libvpy's font advances by a per-glyph amount, so a string's width has to be measured, not computed. Links the real `vpy.c` against a fake sink and prints the width in VPy units plus the left edge for a centred line. |
+
+Controls: **button 1** thrusts along the nose, **buttons 2/3** rotate, and the
+stick rotates too once it has been seen near centre (see the stick guard in
+`main.c` — a stick pinned at an extreme is ignored rather than spinning the ship
+for ever).
 
 ---
 
