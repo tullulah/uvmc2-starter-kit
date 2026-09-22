@@ -163,7 +163,10 @@ There is no console on a cartridge, so measurement discipline substitutes for it
 
 ## Known state
 
-`cargo test` in `sdk/vectrex-draw` has one failing test,
-`emit::pentagon::ramp_error_has_no_bias` (mean error per stroke −1.6403). It
-fails identically in the crate this kit was cut from, so it is pre-existing. Do
-not "fix" it by adjusting a beam constant — that constant was measured.
+`cargo test` in `sdk/vectrex-draw` passes with one test **ignored on purpose**,
+`emit::pentagon::ramp_error_has_no_bias`: it measures a real +0.0768 units per
+stroke of bias in `ramp_params` (run it with `cargo test -- --ignored`). Do not
+"fix" it by adjusting a beam constant — those were measured — and do not change
+`ramp.rs` to make it pass without a console measurement; its comment has the
+suspected cause. Tests that touch the model take `crate::emit::test_knobs()`,
+which serialises them and restores every global knob on drop.

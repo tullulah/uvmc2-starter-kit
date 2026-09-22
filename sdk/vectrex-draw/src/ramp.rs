@@ -1181,7 +1181,7 @@ mod vertical_bias {
         /* THE TEST_LOCK, like the other tests in this file: these knobs are GLOBAL STATE and
          * without serialising they clobber each other between tests (adding them without the
          * lock broke `t1_ceiling_is_per_vector`). */
-        let _t = crate::emit::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let _t = crate::emit::test_knobs();
         MIN_T1.store(8, Ordering::Relaxed);
         MIN_T1_START.store(8, Ordering::Relaxed);
         DRAW_SCALE.store(160, Ordering::Relaxed);
@@ -1203,7 +1203,7 @@ mod vertical_bias {
         /* THE TEST_LOCK, like the other tests in this file: these knobs are GLOBAL STATE and
          * without serialising they clobber each other between tests (adding them without the
          * lock broke `t1_ceiling_is_per_vector`). */
-        let _t = crate::emit::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let _t = crate::emit::test_knobs();
         MIN_T1.store(8, Ordering::Relaxed);
         MIN_T1_START.store(8, Ordering::Relaxed);
         DRAW_SCALE.store(160, Ordering::Relaxed);
@@ -1215,7 +1215,7 @@ mod vertical_bias {
 
     #[test]
     fn fixed_time_jump_only_stretches_when_it_does_not_fit() {
-        let _t = crate::emit::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let _t = crate::emit::test_knobs();
         MIN_T1.store(8, Ordering::Relaxed);
         MIN_T1_START.store(8, Ordering::Relaxed);
         DRAW_SCALE.store(160, Ordering::Relaxed);
@@ -1247,7 +1247,7 @@ mod vertical_bias {
 
     #[test]
     fn debt_does_not_move_an_unasked_axis() {
-        let _t = crate::emit::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let _t = crate::emit::test_knobs();
         MIN_T1.store(8, Ordering::Relaxed);
         MIN_T1_START.store(8, Ordering::Relaxed);
         DRAW_SCALE.store(160, Ordering::Relaxed);
@@ -1272,7 +1272,7 @@ mod vertical_bias {
 
     #[test]
     fn subunits_reach_positions_integers_cannot() {
-        let _t = crate::emit::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let _t = crate::emit::test_knobs();
         MIN_T1.store(8, Ordering::Relaxed);
         MIN_T1_START.store(8, Ordering::Relaxed);
         DRAW_SCALE.store(160, Ordering::Relaxed);
@@ -1313,7 +1313,7 @@ mod x_bias_2026_09_04 {
     /// same cases, with no cartridge in between.
     #[test]
     fn print_the_x_bias() {
-        let _t = crate::emit::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let _t = crate::emit::test_knobs();
         MIN_T1.store(8, Ordering::Relaxed);
         MIN_T1_START.store(8, Ordering::Relaxed);
         DRAW_SCALE.store(160, Ordering::Relaxed);
@@ -1455,7 +1455,7 @@ mod drift_bench {
     /// THE TWO JUMP VARIANTS, SIDE BY SIDE, over the same geometry.
     #[test]
     fn jump_absorbs_or_not() {
-        let _t = crate::emit::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let _t = crate::emit::test_knobs();
         knobs_like_the_cartridge();
         T1_EXTRA_Q8.store(0, Ordering::Relaxed);
         let q = q_bits();
@@ -1470,7 +1470,7 @@ mod drift_bench {
 
     #[test]
     fn debt_does_not_run_away() {
-        let _t = crate::emit::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let _t = crate::emit::test_knobs();
         MIN_T1.store(8, Ordering::Relaxed);
         MIN_T1_START.store(8, Ordering::Relaxed);
         DRAW_SCALE.store(160, Ordering::Relaxed);
@@ -1548,6 +1548,7 @@ mod first_call {
      * If a different (vx,vy,t1) comes out here than on the board, the difference is a knob. */
     #[test]
     fn the_frames_first_delta() {
+        let _k = crate::emit::test_knobs();
         knobs_like_the_cartridge();
         vx_chain_reset(); vx_debt_reset();
         let (vx, vy, t1) = ramp_params_chain_q4(0, 40);
@@ -1560,6 +1561,7 @@ mod direct_rate {
     use super::*;
     #[test]
     fn stroke_391() {
+        let _k = crate::emit::test_knobs();
         knobs_like_the_cartridge();
         DEBT_ON.store(0, Ordering::Relaxed);
         vx_chain_reset(); vx_debt_reset();
@@ -1579,6 +1581,7 @@ mod ladder {
     /// (105, 0) with t1 = 18.
     #[test]
     fn rates_for_a_given_t1() {
+        let _k = crate::emit::test_knobs();
         knobs_like_the_cartridge();
         let dx = (11.8125 * 256.0) as i32;      // 11.81 units in Q8
         let mut vx = 0i32; let mut vy = 0i32;
@@ -1601,7 +1604,7 @@ mod jump_bias {
     /// --test-threads=1 jump_bias`
     #[test]
     fn the_jumps_sign_bias() {
-        let _t = crate::emit::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let _t = crate::emit::test_knobs();
         MIN_T1.store(8, Ordering::Relaxed);
         MIN_T1_START.store(31, Ordering::Relaxed);
         DRAW_SCALE.store(127, Ordering::Relaxed);
@@ -1713,6 +1716,7 @@ fn ramp_params_q_old(dx: i32, dy: i32, vcap_in: u32, q: u32) -> (i8, i8, u16) {
 
     #[test]
     fn ramp_params_q_i32_matches_i64() {
+        let _k = crate::emit::test_knobs();
         let mut bad = 0;
         for (scale, extra, transp) in [(127u32, 640u32, 110u32), (146, 664, 110), (160, 0, 160), (110, 664, 110)] {
             DRAW_SCALE.store(scale, Ordering::Relaxed);
@@ -1770,6 +1774,7 @@ fn ramp_params_chain_qn_old(dx_q4: i32, dy_q4: i32, q: u32) -> (i8, i8, u16) {
 
     #[test]
     fn chain_qn_matches_before() {
+        let _k = crate::emit::test_knobs();
         let mut bad = 0;
         for (scale, extra, transp) in [(127u32, 640u32, 110u32), (146, 664, 110), (160, 0, 160)] {
             DRAW_SCALE.store(scale, Ordering::Relaxed);

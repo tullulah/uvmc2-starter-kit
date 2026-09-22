@@ -130,10 +130,11 @@ answers it, and `docs/08-api-reference.md` is the complete API.
 
 ## 7. Known state
 
-* `cargo test` in `sdk/vectrex-draw` has **one failing test**,
-  `emit::pentagon::ramp_error_has_no_bias` (mean error per stroke −1.6403). It
-  fails identically in the crate this kit was cut from, so it is pre-existing and
-  not something the kit introduced. Everything else passes.
+* `cargo test` in `sdk/vectrex-draw` passes, with **one test ignored on
+  purpose**: `emit::pentagon::ramp_error_has_no_bias`. It finds a real bias of
+  +0.077 units per stroke in `ramp_params`, and the fix would move geometry, so it
+  waits for a measurement on the console. `cargo test -- --ignored` runs it. Its
+  comment has the suspected cause.
 * `sdk/uvm2-sdk/tools/*.c` are host-side measurement tools, not part of any
   build. `stats.py`, `probe.sh`, `load.sh` and `release.sh` there talk to a
   console over SWD. They are compiled by hand; each one's header comment gives the command
