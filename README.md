@@ -53,7 +53,7 @@ rustup target add thumbv8m.main-none-eabi     # softfp bare-metal Cortex-M33
 | **ffmpeg** | `make snd` in `game/tacscan` — decoding `samples/*.wav` into the `.vsm` bundle. The bundle ships pre-built, so you only need this to regenerate it. |
 | **emscripten** (emsdk) | `make sim` — the WASM build for a browser harness. Not needed for the cartridge. |
 | a host C compiler | `make host` / `make host-prof` — the desktop test harness. Any `cc`. |
-| **probe-rs** or GDB | reading `uvm2_stats` over SWD on real hardware. |
+| **probe-rs** (verified 0.31.0) + a Pico running **Debugprobe** (verified 2.3.1) | reading `uvm2_stats` over SWD on real hardware (`sdk/uvm2-sdk/tools/stats.py`); wiring in `docs/07-measuring.md`. `arm-none-eabi-gdb` too for `probe.sh` / `load.sh`. |
 
 ## 2. Set up
 
@@ -135,5 +135,6 @@ answers it, and `docs/08-api-reference.md` is the complete API.
   fails identically in the crate this kit was cut from, so it is pre-existing and
   not something the kit introduced. Everything else passes.
 * `sdk/uvm2-sdk/tools/*.c` are host-side measurement tools, not part of any
-  build. They are compiled by hand; each one's header comment gives the command
+  build. `stats.py`, `probe.sh`, `load.sh` and `release.sh` there talk to a
+  console over SWD. They are compiled by hand; each one's header comment gives the command
   line.

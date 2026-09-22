@@ -36,6 +36,7 @@ Sizes are rounded; they tell you whether a file is a glance or a session.
 | `uvm2_bus_stream.h` | 46 | The C face of the Rust bus crate. No implementation here. |
 | `memmap_psram.ld` | 350 | Opt-in: link the whole image into PSRAM. Its comments are the best account of what does and does not belong in external memory. |
 | `tools/*.c`, `tools/*.py` | ~1500 | Host-side measurement tools. Not part of any build. See [07](07-measuring.md). |
+| `tools/stats.py`, `probe.sh`, `load.sh`, `release.sh` | 380 | **SWD tools** for a console on the bench: read `uvm2_stats` without halting, the PC of a hang, load an image without the SD card. Which ones halt the core is in [07](07-measuring.md). |
 
 ## `sdk/rp2350-sdk/` — the game-facing backend
 
@@ -49,7 +50,7 @@ Sizes are rounded; they tell you whether a file is a glance or a session.
 
 | file | ~lines | what it is |
 |---|---|---|
-| `src/ramp.rs` | 1800 | **`ramp_params`**: splitting a delta into (rate, rate, t1). Every constant and why. The single source of truth for beam geometry. |
+| `src/ramp.rs` | 1800 | **`ramp_params`**: splitting a delta into (vx, vy, t1). Every constant and why. The single source of truth for beam geometry. |
 | `src/emit.rs` | 1580 | Stroke and chain emission, the debt, and the test benches. |
 | `src/lib.rs` | 57 | The crate's surface. |
 | `cabi/src/lib.rs` | 150 | The C wrapper (`vx_ramp_params` &c.) plus the panic handler. |
@@ -93,7 +94,7 @@ Only what `game/tacscan` needs is here (~52 files). Other AAE games need more.
 
 | file | ~lines | what it is |
 |---|---|---|
-| `Makefile` | 170 | Four targets: `uvm2`, `host`, `host-prof`, `sim`, `snd`. Every flag commented. |
+| `Makefile` | 170 | Five targets: `uvm2`, `host`, `host-prof`, `sim`, `snd`. Every flag commented. |
 | `src/main.c` | 125 | The frame loop, in 20 lines, plus a telemetry block. |
 | `src/aae_machine.c` | 137 | **The `driver[]` row, `getport()` and the ROM load.** The heart of an AAE port. |
 | `src/aae_stubs.c` | 53 | No-ops for the AAE subsystems this game never enters. |
@@ -125,6 +126,7 @@ Only what `game/tacscan` needs is here (~52 files). Other AAE games need more.
 | how the SD card is read, and its traps | `sdk/uvm2-sdk/uvm2_sd.c` (top 40 lines) |
 | what PSRAM is safe for | `sdk/uvm2-sdk/uvm2_psram.c` (top 30 lines), `memmap_psram.ld` |
 | what a frame actually costs | `sdk/uvm2-sdk/tools/uvm2_list_count.c` |
+| how to read `uvm2_stats` on a running console, and how the probe is wired | [07](07-measuring.md) "Reading them over SWD", `sdk/uvm2-sdk/tools/stats.py` |
 | how an arcade game is ported | [10](10-porting-an-aae-game.md), then `game/tacscan/src/aae_machine.c` |
 | how to go from a MAME driver | [11](11-porting-from-mame.md) |
 | what is calibrated per console | `sdk/uvm2-sdk/uvm2_config.h` |

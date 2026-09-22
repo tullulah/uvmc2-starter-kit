@@ -16,7 +16,7 @@ know X" to the one file that answers it. If you are about to port an arcade game
 | [04 — Drawing](04-drawing.md) | The beam model: ramps, subunits, re-zeroing, intensity, and what actually costs time |
 | [05 — Dual core, PIO and DMA](05-dual-core-pio-dma.md) | The core split, the PIO program, the DMA ring, and the one timing rule |
 | [06 — Sound, input and the SD card](06-sound-input-sd.md) | The PSG, samples injected into the draw list, controllers, FAT16/32 |
-| [07 — Measuring](07-measuring.md) | The host tools, what to measure, and the traps that made earlier measurements lie |
+| [07 — Measuring](07-measuring.md) | The counters and how to read them over SWD, the host tools, what to measure, and the traps that made earlier measurements lie |
 | [08 — The API](08-api-reference.md) | Complete reference: libvpy, the host contract, the SDK, the syscalls |
 | [09 — Source map](09-source-map.md) | What lives in which file, and an index from *question* to *file* |
 | [10 — Porting an AAE game](10-porting-an-aae-game.md) | The eight pieces you write, from the worked example |

@@ -358,6 +358,33 @@ These belong to the machine the cartridge is plugged into, not to the game. A
 game normally only calls `uvm2_config_game()` to declare which settings its menu
 should offer.
 
+#### `uvm2_config_game(name, settings)`
+
+Two files, split by **whose** settings they are:
+
+| file | holds | written by |
+|---|---|---|
+| `config/uvm2.cfg` | the beam calibration (`scale` … `drift_y`): the console's, shared by every game | the first game to start creates it |
+| `config/<NAME>.cfg` | the game's own settings, layered on top of the console's | only the settings the game declared |
+
+`name` is the game's 8.3 base name, no extension (`"TACSCAN"`). `settings` is an
+OR of:
+
+| bit | value | the wizard offers |
+|---|---|---|
+| `UVM2_SETTING_HZ` | 1 | refresh 50 / 60 / 0 (free) → `hz` |
+| `UVM2_SETTING_MENU` | 2 | menu on power-up; with it off, button 4 still forces the menu → `start_menu` |
+| `UVM2_SETTING_ROTATE` | 4 | drawing rotated 90° for a horizontal arcade game → `rotate` |
+
+Call it **before** `uvm2_config_load()`. Declare only what means something in
+your game: a vertical game should not offer `ROTATE`. Not calling it at all gives
+the old behaviour — one file, and no game settings in the wizard.
+
+```c
+uvm2_config_game("MYGAME", UVM2_SETTING_HZ | UVM2_SETTING_MENU);
+uvm2_config_load();
+```
+
 ### The PIO stream — `uvm2_bus_stream.h`
 
 You should not need this; `uvm2_draw.c` drives it. It is documented because
@@ -385,18 +412,23 @@ another cartridge's BIOS. Arguments in r0-r3, AAPCS.
 
 | # | name | # | name |
 |---|---|---|---|
-| 0 | `RESET0REF` | 14 | `READ_BTN_RAW` |
-| 1 | `WAIT_RECAL` | 15 | `MOVE_ABS` |
-| 2 | `SET_INTENSITY` | 16 | `PRINT_TEXT` |
-| 3 | `MOVE` | 21 | `PLAY_MUSIC` |
-| 4 | `DRAW_DELTA` | 22 | `STOP_MUSIC` |
-| 5 | `PSG_WRITE` | 23 | `PLAY_SFX` |
-| 6 | `PSG_SILENCE` | 26 | `RASTER_TEXT` |
-| 7 | `READ_BUTTONS` | 27 | `DRAW_GAPPED` |
-| 8 | `BUS_WRITE` | 28 | `MOVE_Q4` |
-| 10 | `SAMPLE_POS` | 29 | `DRAW_DELTA_Q4` |
-| 11 | `BUS_READ` | 12 | `PSG_READ` |
-| 13 | `READ_AXES` | | |
+| 0 | `RESET0REF` | 12 | `PSG_READ` |
+| 1 | `WAIT_RECAL` | 13 | `READ_AXES` |
+| 2 | `SET_INTENSITY` | 14 | `READ_BTN_RAW` |
+| 3 | `MOVE` | 15 | `MOVE_ABS` |
+| 4 | `DRAW_DELTA` | 16 | `PRINT_TEXT` |
+| 5 | `PSG_WRITE` | 21 | `PLAY_MUSIC` |
+| 6 | `PSG_SILENCE` | 22 | `STOP_MUSIC` |
+| 7 | `READ_BUTTONS` | 23 | `PLAY_SFX` |
+| 8 | `BUS_WRITE` | 26 | `RASTER_TEXT` |
+| 10 | `SAMPLE_POS` | 27 | `DRAW_GAPPED` |
+| 11 | `BUS_READ` | 28 | `MOVE_Q4` |
+| | | 29 | `DRAW_DELTA_Q4` |
+
+The gaps (9, 17-20, 24, 25) are unassigned. `23` and `26` are worth not
+confusing: raster text once went out as `23`, which is `PLAY_SFX` in the other
+cartridge's BIOS; the SFX player took the text pointer for a track and hung the
+core (see the note in `sdk_rp2350.c`).
 
 Drawing syscalls only **record**; `WAIT_RECAL` is what makes a frame happen.
 Input is sampled once per frame inside `WAIT_RECAL` and cached, so reading it

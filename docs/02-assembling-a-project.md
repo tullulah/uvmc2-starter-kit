@@ -26,20 +26,56 @@ This is `examples/hello_uvmc2/Makefile`, trimmed to the load-bearing lines:
 ```make
 UVMC2_KIT   ?= $(abspath $(dir $(lastword $(MAKEFILE_LIST)))../..)
 UVM2_SDK    ?= $(UVMC2_KIT)/sdk/uvm2-sdk
+VPY_C_SDK   ?= $(UVMC2_KIT)/sdk/vpy-c
+PITREX_INC  ?= $(UVMC2_KIT)/sdk/pitrex-sim/include
 
 UVM2_NAME    = hello_uvmc2              # -> build_uvm2/hello_uvmc2.um2
-UVM2_SRCS    = src/main.c $(UVMC2_KIT)/sdk/vpy-c/vpy.c
+UVM2_SRCS    = src/main.c $(VPY_C_SDK)/vpy.c
 UVM2_CC      = arm-none-eabi-gcc
-UVM2_CFLAGS  = -mthumb -mcpu=cortex-m33 -mfloat-abi=soft -ffreestanding -O2 \
+UVM2_CFLAGS  = -mthumb -mcpu=cortex-m33 -mfloat-abi=soft -ffreestanding -O2 -std=gnu11 \
                -ffunction-sections -fdata-sections -DVPY_RP2350 \
-               -Isrc -I$(UVMC2_KIT)/sdk/vpy-c/include \
-               -I$(UVMC2_KIT)/sdk/pitrex-sim/include
+               -Isrc -I$(VPY_C_SDK)/include -I$(PITREX_INC)
 
 include $(UVM2_SDK)/uvm2.mk
 ```
 
 `uvm2.mk` adds `sdk_rp2350.c`, the whole `uvm2-sdk`, the Rust crates, the linker
 script, the startup code and the packaging step.
+
+## The smallest game that works
+
+And this is the C side, cut down from `examples/hello_uvmc2/src/main.c` to what
+every game has: a setup, a per-frame loop, input, drawing.
+
+```c
+#include <vpy.h>
+
+static int s_x;                          /* VPy units: -127..127, +y up, (0,0) centre */
+
+static void setup(void) { s_x = 0; }
+
+static void loop(void)                   /* once per frame, input already sampled */
+{
+    if (vpy_j1_x() >  32) s_x++;
+    if (vpy_j1_x() < -32) s_x--;
+    s_x = vpy_clamp(s_x, -100, 100);
+
+    vpy_print_text(-60, 100, "HELLO");
+    vpy_draw_rect(-120, -120, 240, 240, 40);          /* brightness 0..127 */
+    vpy_draw_line(s_x - 10, 0, s_x + 10, 0, 110);
+}
+
+int main(void)
+{
+    vpy_run(setup, loop);                /* never returns */
+    return 0;
+}
+```
+
+There is no explicit "present" call: `vpy_run` calls `vpy_frame_begin()` before
+each `loop()`, and that is what seals the previous frame and hands it to core 1
+(see [03](03-the-command-list.md)). Everything drawn inside `loop()` is one
+frame. The full API is in [08](08-api-reference.md).
 
 ### Starting a new game
 

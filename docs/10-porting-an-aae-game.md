@@ -327,6 +327,9 @@ nothing.
 UVMC2_KIT   ?= $(abspath $(dir $(lastword $(MAKEFILE_LIST)))../..)
 AAE_SRC     ?= $(UVMC2_KIT)/third_party/aae
 UVM2_SDK    ?= $(UVMC2_KIT)/sdk/uvm2-sdk
+VPY_C_SDK   ?= $(UVMC2_KIT)/sdk/vpy-c
+VPY_C_INC   ?= $(VPY_C_SDK)/include
+PITREX_INC  ?= $(UVMC2_KIT)/sdk/pitrex-sim/include
 
 CFLAGS = -DROMZIP_NO_STDIO -DMZ80_IDLE_SKIP -mthumb -mcpu=cortex-m33 \
          -mfloat-abi=soft -ffreestanding -O3 -std=gnu11 \
