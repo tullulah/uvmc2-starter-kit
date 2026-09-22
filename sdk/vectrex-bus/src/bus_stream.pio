@@ -1,0 +1,282 @@
+; Bus-master WRITE STREAM — one write per E period, the way the 6809 does it.
+; =====================================================================
+; WHAT WE GOT WRONG FOR MONTHS, and what fixed it:
+;
+; The 6800-family bus does exactly ONE access per E period, and the two halves of the
+; period are not interchangeable:
+;
+;     E LOW   (first half)   the master changes the address. The VIA is not looking.
+;     E HIGH  (second half)  the VIA decodes; address, CS and R/W must be STABLE.
+;     E FALL  (the edge)     the write is latched.
+;
+; So the address must change during E LOW and hold through E HIGH. That is the whole
+; rule. The Vectrex BIOS proves the VIA takes it back-to-back — `$F151: STD <$02` writes
+; $D002 and $D003 in consecutive E periods, and has since 1982. "Two periods is the
+; floor" was a statement about our old CPU protocol, never about the hardware.
+;
+; Measured on the console, and it is the cleanest confirmation we have:
+;   present within 30 cycles of the fall  -> always inside E low  -> DRAWS
+;   present within 70 cycles of the fall  -> spills into E high   -> BLACK SCREEN
+; A setup-time violation degrades; a phase violation fails outright, and it failed
+; outright. The period is 100 CPU cycles at 150 MHz, so E low is the first 50.
+;
+; ~E IS THE INVERTED E. Cart edge pin 12, traced on the netlist 2026-08-04 (6809 pin 34
+; -> R216 -> IC202 gate A wired as an inverter -> R226 -> J201 pin 12). It free-runs at
+; 1.5 MHz regardless of address, R/W or cart select. So:
+;
+;     ~E RISING  =  E FALLING  =  the latch, and the start of the next E low.
+;
+; One edge means both "the previous write just landed" and "it is now safe to present the
+; next one", which is why this loop has no delays at all: the WAITs are the
+; synchronisation and everything else rides in the E-low half.
+;
+; ── THE UNDERRUN, AND WHY THERE IS NO DMA REQUIREMENT ──────────────────────────
+; If the FIFO empties, a plain `out` stalls with the pins HOLDING THE LAST WORD. A VIA
+; address left selected is re-latched on EVERY subsequent E fall — idempotent for a port
+; register, NOT for T1_HI, which restarts the ramp. That would repeat at 1.5 MHz.
+;
+; `pull noblock` solves it in hardware: when the TX FIFO is empty it loads the OSR from
+; **X** instead of stalling. X is loaded once, before the loop, with the PARK word
+; ($C000, which decodes to nothing). So a starved stream parks the bus instead of
+; hammering the VIA, with no branch, no DMA and no CPU involvement. Underrun stops being
+; a hazard to design around and becomes the idle state.
+;
+; That also means DMA is an OPTIMISATION here, not a correctness requirement: the CPU can
+; feed the FIFO directly and the only cost of being late is a parked period.
+;
+; ── THE PIN MAP MAKES ONE OUT ENOUGH, and only just ────────────────────────────
+; (This map is our own debug cartridge's; the UVM2's differs and is why `out_base` /
+;  `out_count` are parameters instead of constants. See `Layout` in lib.rs.)
+;   GP4 ..GP19   A0..A15      A15 (GP19) is what selects the VIA at $D000
+;   GP20         ABUS_DIR     **LOW = we drive**. The code that draws says so
+;                             (`abus_dir.set_low().unwrap(); // DRIVE` in init), NOT the
+;                             comment in pins.rs, which claims the opposite and made me
+;                             set it high: with that the address transceiver faces us and
+;                             the address never reaches the bus.
+;                             Constant for the whole burst, so it rides inside the OUT as
+;                             a bit that is always 0.
+;   GP21..GP28   D0..D7
+;   GP30         CART_RW      LOW = WRITE. Set once by the CPU, not per write.
+;   GP31         ~E           our phase reference
+; Address and data are not contiguous — GP20 sits between them — but GP20 has to be LOW
+; for the whole burst anyway, so one `out pins, 25` sets address, direction and data
+; together. The word is `stream_word()` in vinterface.rs, which asserts this layout at
+; compile time rather than restating it.
+;
+; NO SIDE-SET. The old version pulsed A15 to strobe. We hold A15 as the address bit it
+; actually is (see BUS_HOLD_A15) and let the decoder do its job, so GP19 is just another
+; bit inside the OUT and nothing has to arbitrate for it.
+;
+; SM config from Rust:
+;   out_pins  base GP4, count 25       autopull OFF — the PULL is explicit, because
+;                                      `pull noblock` is the whole park mechanism
+;   ~E        gpio 31 absolute in the WAITs — no pin group needed
+;   clock divisor 1:0 — 1 PIO cycle = 1 sys cycle (150 MHz). Nothing here is timed in
+;   cycles, so the divisor only affects how fast the WAITs poll.
+;
+; THE FIRST WORD THE CPU PUSHES IS THE PARK WORD. It is consumed by the preamble below
+; and never reaches the pins.
+
+.program bus_stream
+
+; ── preamble: runs once, then falls into the loop ──────────────────────────────
+; THE STATE MACHINE SETS ITS OWN PIN DIRECTIONS. Leaving them to the HAL's `set_pindirs`
+; left the 25 pins as INPUTS: the SM ran, drained the FIFO and executed `out pins`, but
+; the pad drove nothing. The symptom was a black screen with BUS_WRITE_CYCLES = 98 (i.e.
+; one E period per write, the SM working) and STREAM_SAW reading rubbish.
+; Doing it here with `out pindirs` uses, by construction, the SAME base and count as the
+; `out pins` below, so they cannot drift apart.
+    pull block                  ; 1st word: 25 ones = every pin to OUTPUT
+    out pindirs, 25
+    pull block                  ; 2nd word: the PARK pattern
+    mov x, osr                  ; into X: `pull noblock` falls back to X when the FIFO is
+                                ; empty, and that IS the underrun handling
+
+.wrap_target
+start:
+    ; MEASURED ON THE CONSOLE, and the previous order was half a period out of phase. With
+    ; `wait 0` and then `wait 1`, the address change landed 484 ns from E's falling edge —
+    ; i.e. 151 ns INSIDE E high, the half in which the 6522 decodes and the address has to
+    ; be still. 11 of 13 changes violated the phase and the VIA latched nothing: black
+    ; screen.
+    ;
+    ; Measured on A0 (R214, the 33R resistor — far more accessible than the 6522's pin 38)
+    ; against E, with E as the ruler: its period is 667 ns by definition.
+    ;
+    ; Swapping the two waits moves the presentation half a period: 484 - 333 = 151 ns,
+    ; inside E low. The model and the simulation were correct; what was wrong was WHICH
+    ; edge of ~E we synchronised against.
+    ;
+    ; ── PHASE, MEASURED AGAINST THE PATH THAT DRAWS ───────────────────────────
+    ; 2026-08-07, same session, same probe tip (A12 on the 6809), same channel, and the
+    ; scope triggering the same way. Phase of A12's change within the E period, taking E's
+    ; rising edge as the origin:
+    ;
+    ;     the SIO path, which DOES draw    245 ns    spread 20 ns
+    ;     this stream, which does NOT      465 ns    spread 25-30 ns
+    ;
+    ; 221 ns of difference, i.e. 33% of the period: **they fall in OPPOSITE HALVES of E**.
+    ; And with 25 ns of spread it is not jitter to be averaged away, it is a FIXED OFFSET —
+    ; which is exactly the class of fault that can be corrected, and the one that "fails
+    ; outright" instead of degrading.
+    ;
+    ; It is corrected in two steps, and neither costs bus time:
+    ;   1. SWAPPING the two waits moves the presentation half a period: -333 ns, i.e.
+    ;      465 -> 132 ns. Free; it is the same instruction in a different order.
+    ;   2. `nop [16]` is 17 PIO cycles at 150 MHz = 113 ns, and 132 + 113 = 245 ns, which
+    ;      is exactly where the path that draws puts it.
+    ;
+    ; MIND THE COMMENT THAT USED TO BE HERE. It said adding a `nop` MAKES IT WORSE,
+    ; measured at 30 cycles. And that was true WITH THE OTHER ORDER OF WAITS: from 465 ns,
+    ; delaying further only sinks the presentation into the wrong half. From 132 ns,
+    ; delaying is exactly what is needed. The sign of the adjustment depends on the
+    ; starting point, and the starting point is only known by measuring against the path
+    ; that works — not against a model.
+    wait 0 gpio 31
+    wait 1 gpio 31              ; half a period earlier than the previous order
+    nop [14]                    ; RECALIBRATED from [16]: the sentinel inserts `out y,1`
+                                ; and `jmp !y` before the presentation, i.e. 2 PIO cycles
+                                ; (13.3 ns at 150 MHz) that have to be given back here.
+                                ; It lands inside E low.
+    ; DO NOT PUT A `nop` HERE. It was tried (30 cycles = 200 ns) to move the presentation
+    ; away from the edge, and it MAKES IT WORSE: the median went from 261 to 340 ns, just
+    ; above the 333 that separates E low from E high, and the violations rose from 40% to
+    ; 50%.
+    ;
+    ; The direction was backwards. The presentation already lands LATE inside E low — 261
+    ; of 333, in the last third — because those 261 ns are the PROPAGATION DELAY from ~E's
+    ; edge until the pad changes. Adding delay pushes it out, and there is nothing to
+    ; remove: the loop is already minimal.
+    ;
+    ; So the offset is not fixed here. What is left to fix is the SPREAD: with 220 changes
+    ; split between the two halves there is no constant offset to correct, there is jitter
+    ; — `pull noblock` does not wait, and a word that arrives late is presented in the next
+    ; period. The DMA removes that, which is what keeps the FIFO from ever running dry.
+    ;
+    ; ── A PERIOD OF SILENCE ───────────────────────────────────────────────────
+    ; The loop used to emit ALWAYS, one `out pins` per E period. That turns the analog
+    ; gaps (BEAM_ON, BLANK_SETTLE, the e6809 gaps) into writes, when on the SIO path they
+    ; were silence — and the silence is part of how the stroke is formed.
+    ; MEASURED: 17314 words per frame through the stream against 2390 writes on the direct
+    ; path, and ZERO stalls (i.e. the underrun park never actually fired: the filling was
+    ; deliberate, not a safety net).
+    ;
+    ; Symptom: the .vec files come out drawn correctly but the strokes DO NOT CHAIN.
+    ; Bisected over USE_PIO_STREAM / USE_DMA_RING: it is the PIO, the DMA ring is innocent.
+    ;
+    ; BIT 0 = SENTINEL, and that is why the payload moves up one bit: `out` consumes from
+    ; the LOW bit, so the only place you can look before driving is bit 0. stream_word
+    ; shifts the word accordingly — THE TWO MOVE TOGETHER or they drift apart.
+    ;
+    ;     bit 0        1 = there is a write, 0 = a period of silence
+    ;     bits 1..25   the usual word (A0..A15, ABUS_DIR, D0..D7)
+    ;
+    ; ── REPEATED PARK: ONE word instead of N ─────────────────────────────────
+    ; The ramp wait used to push ~34 park words PER VECTOR — about 8400 per frame — to
+    ; produce something the SM already does for free: `pull noblock` falls back to X when
+    ; the FIFO runs dry, and X IS the park pattern. Those 8400 FIFO writes are CPU time and
+    ; FIFO pressure in exchange for nothing.
+    ;
+    ; The idea comes from reading Vectorblade (Malban): its three generations of drawing
+    ; loop go "fixed padding" -> "poll T1" -> "do not wait, the loop IS the ramp". We
+    ; cannot copy the third — it writes from the 6809 and we queue — but we can stop PAYING
+    ; for the wait word by word.
+    ;
+    ; TWO TAG BITS, and the second is only read if the first says there is no write, so the
+    ; path that drives PAYS NOTHING for this:
+    ;
+    ;     bit0 = 1            a write, payload in bits 1..25
+    ;     bit0 = 0, bit1 = 0  a period of silence
+    ;     bit0 = 0, bit1 = 1  PARK for N periods, N-1 in bits 2..25
+    ;
+    ; The -1 is because `jmp y--` jumps WHILE Y is not zero and decrements afterwards, so
+    ; with Y = N-1 the body runs N times. `stream_repeat_word` in Rust encapsulates it.
+present:
+    pull noblock                ; the next write, or PARK if we have been starved
+    out y, 1                    ; sentinel
+    jmp !y, no_write
+    out pins, 25                ; address + ABUS_DIR + data, presented inside E low.
+                                ; It holds through E high and latches on the next fall.
+    ; JUMP BACK TO THE TOP BY HAND, and NOT to a label at the end of the program.
+    ;
+    ; THERE USED TO BE A `jmp end` HERE WITH `end:` WRITTEN AFTER THE LAST INSTRUCTION, and
+    ; that is the reason — the only reason — the stream did not start. pio-parser resolves
+    ; a label as "how many instructions have been seen so far"
+    ; (`Line::Label => defines.insert(name, instr_index)`), so a label at the end is worth
+    ; N, and the program ends at N-1: `end` pointed at the slot AFTER the program. There is
+    ; no warning and no error; the assembler accepts it and `install` relocates it happily.
+    ;
+    ; There is no code of ours in that slot: unwritten PIO instruction memory, which reads
+    ; 0x0000 — and 0x0000 decodes as `jmp always 0`. So the SM ran the preamble, made ONE
+    ; pass, took the driving path and then spun at address 0 for ever. The FIFO filled up,
+    ; not one write reached the VIA, and the cartridge did not start.
+    ;
+    ; That is why nothing that was measured found it: the `stream_word` bits, the phase
+    ; against E, the `out pindirs` preamble and the duration of both branches were ALL
+    ; correct. The program never got to execute twice.
+    ;
+    ; `jmp start` costs the same cycle `jmp end` cost, so both branches still last 5 cycles
+    ; and the `nop [14]` calibration does not move.
+    jmp start
+no_write:
+    out y, 1                    ; second tag: 1 = repeated park, 0 = silence
+    jmp !y, silence
+    out y, 24                   ; the count, N-1
+park:
+    ; X holds the park pattern WITH its sentinel, so it has to be thrown away before
+    ; driving — exactly as `pull noblock` does when it falls back to X on its own account.
+    mov osr, x
+    out null, 1
+    out pins, 25
+    ; AND HERE THE RE-SYNCHRONISATION, which is what makes this equivalent to pushing N
+    ; words: each pass waits for its own E period. Without these two waits the loop would
+    ; run at 150 MHz and park N times inside the same period.
+    wait 0 gpio 31
+    wait 1 gpio 31
+    nop [14]                    ; the SAME phase calibration as above
+    jmp y--, park
+    ; ── LEAVING THE PARK WITHOUT BURNING A PERIOD ─────────────────────────────
+    ; There used to be a `jmp start` here, and it cost ONE E PERIOD PER `vbus_repeat`.
+    ;
+    ; The park's last pass has already done its `wait 0 / wait 1 / nop [14]`, i.e. the SM is
+    ; synchronised and in phase, ready to present. `start` begins with ANOTHER pair of
+    ; waits: E rises, E falls, and nothing is driven in between. A whole period thrown away
+    ; on every delay in the list.
+    ;
+    ; MEASURED in mhavoc, console, 2026-09-09: the list asks for 30000 cycles (20.01 ms)
+    ; and core 1 took 22.27 ms. Of its 4146 commands, 2882 carry a delay — and
+    ; 30000 + 2882 = 32882 cycles = 21.93 ms. That is, this jump alone explains 9.6 of the
+    ; 11.3 percentage points that were missing from 50 Hz.
+    ;
+    ; `present` is the label just before the `pull`, i.e. after `start`'s waits. It costs 2
+    ; more PIO cycles than the normal path (the failed `jmp y--` and this jump), 13.3 ns at
+    ; 150 MHz on a presentation that lands ~245 ns from the edge in a 333 ns half: inside
+    ; the window with margin, and of the same order as the adjustment already made when the
+    ; `nop` was recalibrated from [16] to [14].
+    ;
+    ; AND IT IS NOT A LABEL AT THE END OF THE PROGRAM: `present` is in the middle, not in
+    ; the slot after the last instruction. See the `jmp end` note above.
+    jmp present
+silence:
+    out null, 25                ; consume the payload without driving the bus
+    nop                         ; EQUALISE THE PATHS. The one that drives spends
+                                ; `out pins` + `jmp start` and this one only `out null`:
+                                ; one cycle of difference PER WORD makes the presentation
+                                ; land in one place or another depending on which way you
+                                ; came. Measured on the scope: SIO presents in 171..211 ns
+                                ; and this stream in 165..356, five times the spread, and
+                                ; only 51% inside E low against 95%. It was not a fixed
+                                ; offset. It is also the `.wrap` target, so its pass at the
+                                ; top is free and lands on the same cycle as the other
+                                ; branch's `jmp`.
+.wrap
+
+; TIMING, against the 100-cycle E period measured on hardware (T1_CYCLES_Q8 = 25602 ->
+; 100.0 CPU cycles per period):
+;
+;   the two WAITs   however long is left of the period — they ARE the synchronisation
+;   pull + out      2 cycles, both inside the 50-cycle E-low half
+;
+; One iteration spans exactly one E period and emits exactly one write. The CPU is not in
+; this loop at all: it queues words and carries on emulating, which is the other half of
+; the win and the one that does not depend on any of the above being right.

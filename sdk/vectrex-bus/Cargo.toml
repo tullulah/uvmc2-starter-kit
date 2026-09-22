@@ -1,0 +1,35 @@
+# THE BUS LAYER SHARED by both cartridges: the PIO stream and its DMA ring.
+#
+# Same reason and same shape as vectrex-draw, which is already shared this way. That one
+# unified the BEAM MODEL; this one unifies who puts the bits on the bus. Without it, the
+# UVM2 would have its own driver in C and every discovery would have to be made twice —
+# which is exactly what happened with the BIOS's Recalibrate.
+#
+# What is shared is not only the code: it is the CALIBRATION. The `nop [14]` in
+# bus_stream.pio, the order of the two waits, the two sentinel bits and the -1 of the
+# repeated park all came from scope measurements against the console. Copying them by hand
+# into another file is a guarantee that they will drift apart.
+#
+#   rlib      -> linked by the other cartridge's firmware
+#   staticlib -> libvectrex_bus_cabi.a, which CMake puts into the .um2 image
+[workspace]
+
+[package]
+name = "vectrex-bus"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["rlib"]
+
+[dependencies]
+# NO PAC CRATE, ON PURPOSE: it only declares its cortex-m dependency for the HARDWARE
+# floating-point target, and this crate also has to build softfp for the .um2 image. The
+# registers are poked raw, with provenance noted and a guard in the firmware. See lib.rs.
+pio        = "0.2"
+pio-proc   = "0.2"   # assembles bus_stream.pio HERE, so both boards use the same PIO
+                     # binary and not merely the same source
+
+[profile.release]
+panic = "abort"
+opt-level = "s"

@@ -1,0 +1,48 @@
+# The C wrapper around the draw layer: what the .um2 image links against.
+#
+# It is SEPARATE from the model for a hard reason, not by taste: a `staticlib` demands a
+# `#[panic_handler]`, and the firmware — which links the model as an `rlib` — already brings
+# its own. Two handlers in the same link is a hard error. With the split, each consumer
+# takes only what it needs.
+# INDEPENDENT of any surrounding workspace. Without this, cargo takes it for a member of the
+# root workspace and refuses to build it ("believes it's in a workspace when it's not"). It
+# is a bare-metal crate with its own target; it has no reason to share a profile or a
+# lockfile with host tooling.
+[workspace]
+
+[package]
+name = "vectrex-draw-cabi"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["staticlib"]
+
+[dependencies]
+vectrex-draw = { path = ".." }
+# Optional: the PIO+DMA bus stream. It goes in THIS wrapper and not in its own crate
+# because a staticlib demands a panic handler and two handlers cannot coexist in one link.
+vectrex-bus  = { path = "../../vectrex-bus", optional = true }
+
+[features]
+default = []
+bus = ["dep:vectrex-bus"]
+
+[profile.release]
+panic = "abort"
+opt-level = "s"
+
+# THE RAMP MODEL STAYS AT "s" HERE, AND THAT IS NOT AN OVERSIGHT.
+#
+# The other cartridge's firmware raises `vectrex-draw` to opt-level 3, and that override
+# only applies to ITS link: when a .um2 is built, the root of the build is THIS crate and
+# the model is compiled at "s" again. It looks like a slip, and making them match was tried.
+#
+# MEASURED: it does not pay off HERE. On the other board the raise was worth -3.2%
+# (16,776 -> 16,233 ns per stroke) and its own note says "do not expect more from this" — it
+# is integer arithmetic with nothing to unroll. But the image grows, and a .um2 lives in
+# 496 KB: with opt-level 3, one of the ports — which compiled with 448 bytes of margin —
+# STOPS FITTING. 3% of part of the fill is not worth a port that no longer builds.
+#
+# Once dual-core .um2 images stop carrying the dead LIST_BUF (98 KB, see UVM2_LIST_MAX in
+# uvm2.mk), the margin will be there and this can be brought back into line.

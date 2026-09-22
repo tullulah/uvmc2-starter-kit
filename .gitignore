@@ -1,0 +1,11 @@
+# Build outputs
+build/
+build_uvm2/
+build_rp2350/
+build_wasm/
+target/
+
+# Fetched by ./setup.sh
+third_party/pico-sdk/
+
+.DS_Store
