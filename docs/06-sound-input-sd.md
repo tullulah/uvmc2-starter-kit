@@ -77,8 +77,8 @@ discover.
 `game/tacscan/` shows the whole path: `make snd` converts `samples/*.wav` into
 `build/tacscan.vsm`, a bundle that **ships on the SD card** next to the `.um2`
 (linking it in overflowed the loader's SRAM line and hardfaulted the console).
-The name must stay 8.3 or the reader will not find it and the game is silent —
-the generator checks.
+The name stays 8.3 — this kit's reader takes long names since it moved to FatFs,
+but an 8.3-only reader finds nothing and the game is silent. The generator checks.
 
 ---
 
@@ -116,9 +116,10 @@ Two modes, chosen with `uvm2_input_set_analog()`:
 
 ## The SD card
 
-`uvm2_sd.c` is a bit-banged SPI driver plus a minimal FAT16/FAT32 reader *and
-writer*. It exists because the stock firmware loads the `.um2` and steps aside —
-it does not serve romsets or anything else.
+`uvm2_sd.c` is a bit-banged SPI driver with **FatFs** (`third_party/fatfs`) on
+top: FAT12/16/32 and exFAT, long names, MBR or GPT, reading and writing. It
+exists because the stock firmware loads the `.um2` and steps aside — it does not
+serve romsets or anything else.
 
 ```c
 int      uvm2_sd_init(void);
@@ -129,8 +130,9 @@ int      uvm2_sd_overwrite(const char *path, const unsigned char *data, uint32_t
 int      uvm2_sd_write(const char *path, const unsigned char *data, uint32_t n);
 ```
 
-Paths take one subdirectory, which is what `roms/<game>.zip` needs. Names are 8.3,
-upper-cased, compared case-insensitively on the base name.
+Paths are relative to the root, any depth, long names allowed, compared
+case-insensitively. `uvm2_sd_create` and `uvm2_sd_write` create missing folders
+and replace an existing file.
 
 Things worth knowing:
 
@@ -143,19 +145,22 @@ Things worth knowing:
   with CS on a different pin entirely, and the symptom was a card that never
   answered. They were recovered by dumping `IO_BANK0` over SWD while the firmware
   sat in its own menu with the SD up.
-* **Mounting checks a real BPB**, not "the two bytes I looked at are non-zero":
-  jump opcode, 512 bytes/sector, and a power-of-two sectors/cluster. Sector 0 on
-  these cards is an MBR, and an MBR's boot code can hold anything at offsets 11
-  and 13 — a volume invented from those fails later with `MISSING`, which looks
-  exactly like a file that is not there.
-* **Writing updates every FAT copy and the FAT32 FSInfo.** A FAT updated in one
-  copy is a card the PC calls corrupt, and a stale FSInfo makes `fsck_msdos`
-  complain. The write path was validated against real FAT16 and FAT32 images made
-  with `newfs_msdos`, with `fsck_msdos -n` clean afterwards.
-* **Data before directory entry.** If a write is cut off half way, what is left
-  is clusters in use with nothing pointing at them — lost space a `chkdsk`
-  reclaims — rather than an entry pointing at garbage, which the PC reads as a
-  corrupt file.
+* **exFAT is why this is FatFs.** Until 2026-09-28 the kit had its own
+  FAT16/32 code. Large cards come formatted exFAT, the stock menu reads exFAT, so
+  such a card started the `.um2` and then every file the game asked for failed
+  with `NO_FAT` — reported by a user as arcade ports that "worked for basic
+  functions" until they needed their romset.
+* **Every call mounts afresh**, re-initialising the card: with no detect pin that
+  is the only way a swapped card is noticed.
+* **`uvm2_sd_diag` says what was mounted** (`fs_type`: 2 FAT16, 3 FAT32, 4 exFAT),
+  the raw FatFs `fresult` behind the last error, and `reads`/`writes` block
+  counters — if those do not move, the card was never touched.
+* **`IO_ERROR` is its own code.** A block that fails mid-file used to return a
+  short count with no error at all; now it says so.
+* **Tested against real images**: `sdk/uvm2-sdk/tools/uvm2_sd_test.sh` makes
+  FAT16, FAT32 and exFAT (MBR and GPT) images with macOS's own tools, reads and
+  writes them through `uvm2_sd.c`, and requires `fsck -n` to come out clean and
+  the Mac to read back what was written.
 
 ### Romsets
 

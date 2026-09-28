@@ -36,7 +36,8 @@
  * where the multicart menu looks and where a user drops files.
  *
  * 8.3 AND NOT "aae_tacscan.vsm", WHICH IS HOW THIS FAILED THE FIRST TIME. uvm2_sd.c
- * matches short directory entries only and truncates the base to 8 characters, so
+ * matched short directory entries only (until it moved to FatFs, 2026-09-28; other
+ * cartridges' readers still may) and truncated the base to 8 characters, so
  * the long name was looked up as "AAE_TACSVSM" while the card held "AAE_TA~1.VSM":
  * no match, no bundle, and a game that boots perfectly and says nothing. Same
  * convention as the romset, which is roms/tacscan.zip for the same reason. */

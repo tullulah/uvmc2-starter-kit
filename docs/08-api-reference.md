@@ -312,10 +312,10 @@ or the cartridge is not seated.
 int      uvm2_sd_init(void);
 uint32_t uvm2_sd_read(const char *path,unsigned char *dst,uint32_t max);
 uint32_t uvm2_sd_read_from(const char *path,unsigned char *dst,uint32_t max,uint32_t from);
-int      uvm2_sd_create(const char *path,const unsigned char *data,uint32_t n);   /* 1 cluster */
+int      uvm2_sd_create(const char *path,const unsigned char *data,uint32_t n);   /* 512-byte text file */
 int      uvm2_sd_overwrite(const char *path,const unsigned char *data,uint32_t n);/* 1 sector, in place */
 int      uvm2_sd_write(const char *path,const unsigned char *data,uint32_t n);    /* any size */
-extern int uvm2_sd_error;   /* OK / NO_CARD / NO_INIT / NO_FAT / MISSING / TOO_BIG */
+extern int uvm2_sd_error;   /* OK / NO_CARD / NO_INIT / NO_FAT / MISSING / TOO_BIG / IO_ERROR */
 extern struct uvm2_sd_diag uvm2_sd_diag;   /* what the mount understood about the disk */
 
 int  uvm2_psram_init(void);        /* reset, check ID, arm the XIP window -> 1 if present */
@@ -324,8 +324,8 @@ int  uvm2_psram_probe(void);       /* diagnostic only; may leave the chip in QPI
 #define UVM2_PSRAM_NO_CACHE 0x15000000u   /* verify through THIS, not 0x11000000 */
 ```
 
-Paths take one subdirectory, 8.3 names only, matched case-insensitively on the
-base name. `uvm2_sd_read` treats "does not fit" as a failure; `uvm2_sd_read_from`
+FAT12/16/32 or exFAT (FatFs underneath). Paths are relative to the root, any
+depth, long names allowed, matched case-insensitively. `uvm2_sd_read` treats "does not fit" as a failure; `uvm2_sd_read_from`
 does not.
 
 ### Calibration — `uvm2_config.h`

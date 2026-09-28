@@ -3,7 +3,7 @@
 #
 #   tools/probe.sh                       registers only (r0-r3, PC, LR, SP, xPSR)
 #   tools/probe.sh 0x20080200 4          registers + 4 words from that address
-#   tools/probe.sh <&uvm2_sd_diag> 13    (take the address from the ELF with nm)
+#   tools/probe.sh <&uvm2_sd_diag> 12    (take the address from the ELF with nm)
 #
 # USE IT ON A CONSOLE THAT IS ALREADY HUNG, NOT ON A RUNNING GAME.
 #

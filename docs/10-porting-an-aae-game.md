@@ -313,8 +313,9 @@ For route 3, three small files:
 
 **The bundle ships on the card, not in the image.** Linking 121 KB of samples
 pushed one build past the loader's SRAM line and the console came up with a solid
-red LED — a hardfault, not a hang. And **the name must be 8.3**: `uvm2_sd.c`
-matches short directory entries and truncates the base to 8 characters, so
+red LED — a hardfault, not a hang. And **keep the name 8.3**: before it moved to
+FatFs, `uvm2_sd.c` matched short directory entries and truncated the base to 8
+characters (other cartridges' readers still may), so
 `aae_tacscan.vsm` was looked up as `AAE_TACSVSM` while the card held
 `AAE_TA~1.VSM`. No match, no bundle, and a game that boots perfectly and says
 nothing.

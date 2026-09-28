@@ -66,10 +66,16 @@ endif()
 
 pico_sdk_init()
 
+# FatFs: the file system under uvm2_sd.c (FAT12/16/32 + exFAT). Its configuration is the
+# ffconf.h next to it; third_party/fatfs/README.md lists what differs from upstream.
+set(UVM2_FATFS_DIR ${UVM2_SDK_DIR}/../../third_party/fatfs)
+
 add_executable(${UVM2_NAME}
     ${UVM2_GAME_SRCS}
     ${UVM2_SDK_DIR}/uvm2_bus.c
     ${UVM2_SDK_DIR}/uvm2_sd.c
+    ${UVM2_FATFS_DIR}/ff.c
+    ${UVM2_FATFS_DIR}/ffunicode.c
     ${UVM2_SDK_DIR}/uvm2_romzip.c
     ${UVM2_SDK_DIR}/uvm2_draw.c
     ${UVM2_SDK_DIR}/uvm2_config.c
@@ -195,7 +201,7 @@ if(UVM2_GAME_PREINC)
         COMPILE_OPTIONS "${UVM2_PREINC_OPTS}")
 endif()
 
-target_include_directories(${UVM2_NAME} PRIVATE ${UVM2_SDK_DIR})
+target_include_directories(${UVM2_NAME} PRIVATE ${UVM2_SDK_DIR} ${UVM2_FATFS_DIR})
 # hardware_flash: it is NOT for writing to flash — nothing there is touched. It is for
 # flash_devinfo_set_cs_size() and flash_do_cmd(), which are the only way to ask the BOOTROM for
 # the exit-XIP sequence towards CS1, i.e. towards the PSRAM. See the uvm2_psram_probe_bootrom()

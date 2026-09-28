@@ -158,8 +158,8 @@ host-prof: | build
 # ---- the 22 sounds, from .wav to the SD bundle -----------------------------
 # The bundle is DATA THAT SHIPS ON THE CARD, not part of the image: linking it made
 # the .um2 overflow the UVM2 loader's SRAM line and the console hardfaulted (red
-# LED). Copy build/tacscan.vsm next to the .um2 -- and the name must stay 8.3, or
-# the reader will not find it and the game is silent (the generator checks).
+# LED). Copy build/tacscan.vsm next to the .um2 -- and keep the name 8.3: an
+# 8.3-only reader will not find it and the game is silent (the generator checks).
 #
 # Out of the build's dependencies on purpose: converting needs ffmpeg, and a fresh
 # checkout has to build without it.

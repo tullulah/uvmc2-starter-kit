@@ -196,8 +196,8 @@ def main():
     args = ap.parse_args()
 
     # THE NAME HAS TO BE 8.3, AND THIS IS CHECKED BECAUSE THE FAILURE IS SILENT.
-    # uvm2_sd.c only matches short directory entries (it skips the VFAT ones) and its
-    # `a83` truncates the base to 8 characters: "aae_tacscan.vsm" is looked up as
+    # An 8.3-only reader (uvm2_sd.c was one until it moved to FatFs, 2026-09-28, and
+    # other cartridges' readers still are) truncates the base to 8 characters: "aae_tacscan.vsm" is looked up as
     # "AAE_TACSVSM", the card holds "AAE_TA~1.VSM", nothing matches, the bundle never
     # loads and the game is simply mute. That is how this failed on hardware the first
     # time, and nothing anywhere reported it.

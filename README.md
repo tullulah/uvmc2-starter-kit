@@ -82,7 +82,8 @@ For `tacscan` also copy:
   (the game reads its ROM off the card at startup — it is not inside the image);
 * `game/tacscan/build/tacscan.vsm` → next to the `.um2`, for the sampled sound.
   It ships pre-built; `make snd` regenerates it from `samples/*.wav` and needs
-  `ffmpeg` on the PATH. The name must stay 8.3 or the reader will not find it.
+  `ffmpeg` on the PATH. Keep the name 8.3: this kit reads long names, but not
+  every cartridge's reader does.
 
 If a romset is missing the game says so on screen, with the path it tried. It
 does not fail silently.
@@ -110,6 +111,7 @@ sdk/
   tools/package_um2.py     wraps a .bin in the 20-byte .um2 header
 third_party/
   aae/                     the arcade emulator sources tacscan is built on
+  fatfs/                   ChaN's FatFs: the SD card's file system (FAT + exFAT)
   pico-sdk/                cloned by setup.sh
 ```
 

@@ -26,7 +26,7 @@ Sizes are rounded; they tell you whether a file is a glance or a session.
 | `uvm2_input.c/.h` | 240 | Buttons, joysticks (digital and SAR analog), PSG access. |
 | `uvm2_audio.c/.h` | 230 | `.vmus` / `.vsfx` sequencers, and the PSG mixer shadow. |
 | `uvm2_smp.c/.h` | 580+230 | Digitised samples through the volume DAC. **The `.h` carries the whole model**; read it, not the `.c`. |
-| `uvm2_sd.c/.h` | 810+70 | Bit-banged SPI + a FAT16/32 reader *and writer*. |
+| `uvm2_sd.c/.h` | 450+70 | Bit-banged SPI to the card, and the API over FatFs (FAT12/16/32 + exFAT). |
 | `uvm2_romzip.c` | 100 | Reads `roms/<game>.zip` off the card and publishes the `'RMZ1'` descriptor. |
 | `uvm2_psram.c/.h` | 1150+220 | Brings up the 8 MB on CS1, plus three diagnostic probes. |
 | `uvm2_config.c/.h` | 370+145 | Per-**console** beam calibration, on the SD card. The `.h` explains every field. |
@@ -36,6 +36,7 @@ Sizes are rounded; they tell you whether a file is a glance or a session.
 | `uvm2_bus_stream.h` | 46 | The C face of the Rust bus crate. No implementation here. |
 | `memmap_psram.ld` | 350 | Opt-in: link the whole image into PSRAM. Its comments are the best account of what does and does not belong in external memory. |
 | `tools/*.c`, `tools/*.py` | ~1500 | Host-side measurement tools. Not part of any build. See [07](07-measuring.md). |
+| `tools/uvm2_sd_test.sh` | 110 | `uvm2_sd.c` against real FAT16 / FAT32 / exFAT (MBR and GPT) images, with `fsck -n` after. macOS. |
 | `tools/stats.py`, `probe.sh`, `load.sh`, `release.sh` | 380 | **SWD tools** for a console on the bench: read `uvm2_stats` without halting, the PC of a hang, load an image without the SD card. Which ones halt the core is in [07](07-measuring.md). |
 
 ## `sdk/rp2350-sdk/` — the game-facing backend
@@ -71,6 +72,11 @@ Sizes are rounded; they tell you whether a file is a glance or a session.
 | `pitrex-sim/include/vectrex/vectrexInterface.h` | 75 | **The backend-neutral contract.** 20 declarations; the most important file in the kit per byte. |
 | `pitrex-sim/sdk_host.c` | — | The host/WASM implementation of that contract. |
 | `sdk/tools/package_um2.py` | 60 | The 20-byte `.um2` header. |
+
+## `third_party/fatfs/` — the file system
+
+ChaN's FatFs R0.16, unmodified except `ffconf.h`; `README.md` there lists which
+options differ from upstream and why.
 
 ## `third_party/aae/` — the arcade emulator
 
