@@ -80,6 +80,105 @@ discover.
 The name stays 8.3 — this kit's reader takes long names since it moved to FatFs,
 but an 8.3-only reader finds nothing and the game is silent. The generator checks.
 
+### The 16-bit jack, and how to give it voices
+
+The UVMC2 has its own audio output: a PT8211 16-bit DAC on a jack on the
+cartridge (GPIO43-45, driven by PIO2 and one DMA channel). It has nothing to do
+with the Vectrex's bus or its sound chip, so it costs the drawing nothing.
+
+`uvm2_jack.h` is a **driver, not a sound engine**. It takes mono 16-bit samples at
+`UVM2_JACK_RATE` (32 kHz) and gets them out. It has no voices, no mixer and no
+files. A game that wants several sounds at once mixes them itself, and that is a
+few dozen lines:
+
+```c
+#include "uvm2_jack.h"
+
+/* One voice = one sound playing: where its samples are, how far it has got, how
+ * loud. Samples here are already 16-bit at 32 kHz; see "resampling" below. */
+typedef struct {
+    const int16_t *pcm;      /* the sound */
+    uint32_t       len;      /* in samples */
+    uint32_t       pos;
+    int            gain;     /* 0..256, 256 = full */
+    int            live, loop;
+} voice_t;
+
+#define VOICES 4
+static voice_t s_voice[VOICES];
+static int     s_jack;       /* 0 = no jack on this board */
+
+void jack_start(void) { s_jack = uvm2_jack_init(); }
+
+void jack_play(int v, const int16_t *pcm, uint32_t len, int gain, int loop)
+{
+    s_voice[v] = (voice_t){ pcm, len, 0, gain, 1, loop };   /* restarts that voice */
+}
+
+static int16_t mix_one(void)
+{
+    int32_t acc = 0;
+    for (int i = 0; i < VOICES; i++) {
+        voice_t *v = &s_voice[i];
+        if (!v->live) continue;
+        acc += ((int32_t)v->pcm[v->pos] * v->gain) >> 9;    /* >> 9: half, see headroom */
+        if (++v->pos >= v->len) { if (v->loop) v->pos = 0; else v->live = 0; }
+    }
+    if (acc >  32767) acc =  32767;                         /* clamp, never wrap */
+    if (acc < -32768) acc = -32768;
+    return (int16_t)acc;
+}
+
+/* Once per game frame. The driver keeps about 50 ms queued and says how many
+ * samples it wants to get back there. */
+void jack_update(void)
+{
+    if (!s_jack) return;
+    int n = uvm2_jack_space();
+    while (n > 0) {
+        int16_t buf[128];
+        const int k = n > 128 ? 128 : n;
+        for (int i = 0; i < k; i++) buf[i] = mix_one();
+        uvm2_jack_write(buf, k);
+        n -= k;
+    }
+}
+```
+
+Adding a voice is adding one to `VOICES`. The rules that decide whether it sounds
+right are elsewhere:
+
+* **Headroom.** Voices add up. Four at full scale clip on the first loud moment,
+  and a 16-bit value that wraps is a crack, not distortion. So scale each voice
+  down (`>> 9` above is half) and **clamp**, never let it wrap. One game keeps its
+  music at three quarters and each effect at its own gain, and *ducks* the music to
+  an eighth while a spoken line plays, because a word under music at three
+  quarters is unintelligible.
+* **One voice per class of sound, not per sound.** Give each kind of sound its own
+  voice (footsteps, impacts, speech, music) and let a new sound of the same kind
+  restart that voice. Two footsteps at once are a stumble, and a footstep landing
+  on the speech voice cuts a word in half. This decides more about how a game
+  sounds than the number of voices does.
+* **Call `jack_update()` every frame, and keep frames under ~50 ms.** The ring is
+  64 ms and the driver keeps 50 ms queued. A frame longer than that drains it. The
+  driver re-syncs rather than playing stale data, and you hear a click.
+* **Where the samples live.** SRAM is what the game draws with, so a few seconds of
+  32 kHz audio (64 KB per second) do not belong there. Load them from the SD card
+  into PSRAM (`uvm2_psram_init`, then the XIP window at `0x11000000`), in slices
+  across frames with `uvm2_sd_open`/`uvm2_sd_next`, so that loading never stalls
+  a frame. Storing them as IMA ADPCM (4 bits per sample) and decoding in the
+  mixer divides the space by four.
+* **Resampling.** A source that is not 32 kHz needs a fractional step (a 16.16
+  position advanced by `src_rate / 32000` per output sample) instead of `pos++`.
+  Otherwise it plays at the wrong pitch.
+* **No jack, no sound.** `uvm2_jack_init()` returns 0 on a board without the jack
+  (the debug cartridge). A game that must run on both falls back to the PSG or to
+  the `.vsmp` voices above. The per-game `audio` setting (`UVM2_SETTING_AUDIO`,
+  0 = jack, 1 = console chip) lets the player choose, and the game reads it.
+* **The pitch is only as good as the clock.** The driver sets its divider from the
+  system clock the SDK measures against the Vectrex's E at boot. If a jack game
+  sounds consistently sharp or flat, that measurement is the first suspect.
+
 ---
 
 ## Input

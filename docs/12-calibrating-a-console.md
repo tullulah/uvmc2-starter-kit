@@ -51,6 +51,28 @@ are in; `uvm2_have_calibration` does (0 = no file was found).
 The fields the wizard does not show can still be edited in the file. The wizard
 saves every field, including those, so hand-edited values survive a save.
 
+### Why three fields are not on the screen
+
+* **`hold_y_min/max` reach less than their name suggests.** They set the Y
+  sample-and-hold window only for the swept-text path (`uvm2_draw_sweep_sr`) and
+  the re-zero move. Ordinary strokes and jumps, which is almost everything a game
+  draws, use their own fixed windows in the beam model, so moving these changes
+  nothing in most games. They matter for a game that draws its text with the
+  shift register.
+* **`neg_rate_x/y` are real, and the wheel shows them.** The DAC does not deviate
+  the same at +k as at −k. On a star or on the wheel, the arms where the two axes
+  ask for opposite signs (north-west and south-east) do not line up while all the
+  others do. Neither ZERO (it moves both axes together) nor SCALE (it is
+  symmetric) can fix that. They are the most likely to be worth adding to the
+  screen.
+* **`drift_x/y` are off on purpose.** The per-jump drift was measured once
+  (X −16/256, Y −112/256), but its *model* was never settled: the bench could not
+  tell whether the correction should follow the sign of each jump or always push
+  the same way. Applied with the wrong model, it made one game worse (platforms
+  moved, and a shimmer appeared). Until that is measured, a setting that can only
+  be guessed at does not belong on a screen meant for people who are not
+  measuring. Most of what it would fix is what ZERO fixes.
+
 Settings that belong to a **game** rather than the console (refresh, start-up
 menu, rotation, audio output) live in `config/<GAME>.CFG`, and only for games that
 declare them (`uvm2_config_game`, see [08](08-api-reference.md)).
