@@ -14,11 +14,15 @@
  * smaller but it would still be closed. That is why the reference cartridge has one screen for
  * vectors and another for text: they are these same two terms.
  *
+ * WITH ZERO SELECTED THE PATTERN IS TEXT INSTEAD: see zero_pattern.
+ *
  * CONTROLLER: up/down picks a parameter, left/right moves it, button 4 saves and exits.
+ * HOW TO GET HERE: hold buttons 1 and 4 while the game starts (uvm2_config_boot_combo).
  */
 #include "uvm2_config.h"
 #include "uvm2_draw.h"
 #include "uvm2_text.h"
+#include "uvm2_bus.h"
 
 void uvm2_core1_start(void);
 void uvm2_core1_stop(void);
@@ -77,6 +81,41 @@ static void reference_line(int cx, int cy)
 {
     uvm2_draw_move_abs(cx, cy);
     uvm2_draw_delta(0, 128 / 3);
+}
+
+/* THE ZERO PATTERN: SEVERAL LINES OF TEXT, DRAWN THE WAY A GAME DRAWS THEM.
+ *
+ * Shown while ZERO is the selected field. A zero reference that is wrong for this console adds
+ * the same velocity to every ramp, and nothing makes that more obvious than rows of short
+ * strokes run without a re-zero: each row leans into a diagonal and the glyphs slant. That is
+ * what a tester's console showed with the AAE ports on 2026-09-28 (and the VecFever writes 0x07
+ * where the SDK's default is 0x23 — see UVM2_ZERO_OFFSET).
+ *
+ * The two long strokes are the reference: one ramp each, so they barely carry the offset.
+ * Adjust ZERO until every row runs parallel to the top line and every column stands parallel
+ * to the left one. */
+static const char *const ZERO_ROWS[] = {
+    "HIGH SCORES",
+    "1 DBC 0025350",
+    "2 WAN 0019420",
+    "3 HAN 0017880",
+    "4 GAR 0012750",
+    "5 MLH 0010030",
+};
+#define ZERO_LEFT   (-112)   /* the rows' left edge */
+#define ZERO_TOP    118      /* the first row's top */
+#define ZERO_ROW    15       /* distance between rows */
+
+static void zero_pattern(int bright)
+{
+    const int rows = (int)(sizeof ZERO_ROWS / sizeof ZERO_ROWS[0]);
+    const int bottom = ZERO_TOP - rows * ZERO_ROW;
+    uvm2_draw_move_abs(ZERO_LEFT - 6, ZERO_TOP + 4);           /* the top line */
+    uvm2_draw_delta(160, 0);
+    uvm2_draw_move_abs(ZERO_LEFT - 6, ZERO_TOP + 4);           /* the left line */
+    uvm2_draw_delta(0, bottom - ZERO_TOP - 4);
+    for (int r = 0; r < rows; r++)
+        uvm2_print_text_chained(ZERO_LEFT, ZERO_TOP - r * ZERO_ROW, ZERO_ROWS[r], TEXT, bright);
 }
 
 /* A square drawn with `n` strokes per side, centred on (cx, cy). With n = 1 it is the 4 long
@@ -165,7 +204,9 @@ int uvm2_config_wizard_with(void (*figure)(void))
         uvm2_frame_begin();
         uvm2_draw_intensity(c.bright);
 
-        if (figure) {
+        if (fields[sel].value == &c.zero) {
+            zero_pattern(c.bright);       /* the zero's own pattern, whatever the game passed */
+        } else if (figure) {
             figure();                     /* the game's, see above */
         } else {
             /* The reference figure with its reference line beside it, and below the two
@@ -275,3 +316,32 @@ int uvm2_config_wizard_with(void (*figure)(void))
 }
 
 int uvm2_config_wizard(void) { return uvm2_config_wizard_with(0); }
+
+/* HOLD BUTTONS 1 AND 4 WHILE THE GAME STARTS, AND THE WIZARD OPENS FIRST.
+ *
+ * Until this existed no game opened the wizard, so a console whose zero differs from the
+ * default had no way to fix it short of editing config/uvm2.cfg on a PC.
+ *
+ * Core 1 refreshes the button cache every frame period even with no list published, so this
+ * waits until it has done so a few times — a cache still at its power-on value would read as
+ * "not held" and the check would be one that cannot fire. `uvm2_boot_combo` records the
+ * outcome for SWD: -1 never checked, 0 not held, 1 held and the wizard ran, 2 core 1 never
+ * refreshed the cache (the check could not be made). */
+volatile int32_t uvm2_boot_combo = -1;
+
+void uvm2_config_boot_combo(void)
+{
+    /* uvm2_stats is not volatile, and core 1 is the one advancing this: read it as volatile
+     * or the loop may never see it move. */
+    volatile const uint32_t *idle = &uvm2_stats.idle_frames;
+    const uint32_t start = *idle;
+    /* Bounded by a spin count, not a clock, so it cannot hang if core 1 never runs. At the
+     * 20 ms idle period, 3 refreshes are ~60 ms. */
+    for (uint32_t spin = 0; *idle - start < 3u; spin++) {
+        if (spin > 50000000u) { uvm2_boot_combo = 2; return; }
+    }
+    const uint8_t held = (uint8_t)~uvm2_cached_buttons;       /* active low: 1 = pressed */
+    if ((held & 0x09u) != 0x09u) { uvm2_boot_combo = 0; return; }   /* buttons 1 (bit 0) and 4 (bit 3) */
+    uvm2_boot_combo = 1;
+    uvm2_config_wizard();
+}

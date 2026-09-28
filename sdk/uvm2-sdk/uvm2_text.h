@@ -14,6 +14,12 @@ extern "C" {
  * and after 256 characters. */
 void uvm2_print_text(int x, int y, const char *str, int scale, int intensity);
 
+/* The same text drawn the way a GAME draws it: three calls per stroke, and NO re-zero between
+ * glyphs. Slower to settle and less forgiving — that is the point: it is the calibration
+ * pattern for the zero reference, where uvm2_print_text's per-glyph reset would hide the
+ * error. */
+void uvm2_print_text_chained(int x, int y, const char *str, int scale, int intensity);
+
 #ifdef __cplusplus
 }
 #endif

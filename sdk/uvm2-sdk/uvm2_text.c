@@ -72,3 +72,41 @@ void uvm2_print_text(int x, int y, const char *str, int scale, int intensity)
         cur_x += (7 * scale) >> 1;
     }
 }
+
+/* THE SAME FONT, DRAWN THE WAY A GAME DRAWS ITS TEXT: no re-zero between glyphs.
+ *
+ * uvm2_print_text re-centres the beam before every glyph, and that hides exactly what the
+ * zero calibration has to show. An AAE port draws its text through v_directDraw32 — three
+ * calls per stroke, in 1/16 of a unit, and the beam re-centred only when a jump is long
+ * enough (uvm2_zero_jump). With the zero reference off for this console, every ramp carries
+ * a constant extra velocity, so a row of such text leans into a diagonal: the picture a
+ * tester sent on 2026-09-28. This reproduces it on purpose, stroke for stroke. */
+void uvm2_print_text_chained(int x, int y, const char *str, int scale, int intensity)
+{
+    int cur_x = x;
+    int adj_y = y - ((6 * scale) >> 1);
+    if (scale <= 0) scale = 3;
+    if (intensity <= 0) intensity = 100;
+    for (int i = 0; i < 256; i++) {
+        int n;
+        const uint8_t *st;
+        unsigned char ch = (unsigned char)str[i];
+        if (ch == 0 || ch == 0x80) break;
+        st = glyph(ch, &n);
+        /* Positions in 1/16 of a unit, as v_directDraw32 hands them over: a half-unit step
+         * of the font is 8 of these. */
+        int bx = cur_x * 16, by = adj_y * 16;     /* the glyph's origin, until its first move */
+        for (int s = 0; st && s < n; s += 3) {
+            int tx = cur_x * 16 + st[s + 1] * scale * 8;
+            int ty = adj_y * 16 + st[s + 2] * scale * 8;
+            if (st[s] == 2) {
+                uvm2_draw_intensity(intensity);
+                uvm2_draw_move_abs_q4(bx, by);
+                uvm2_draw_delta_q4(tx - bx, ty - by);
+            }
+            bx = tx;
+            by = ty;
+        }
+        cur_x += (7 * scale) >> 1;
+    }
+}

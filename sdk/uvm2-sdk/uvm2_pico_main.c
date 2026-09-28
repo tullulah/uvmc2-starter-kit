@@ -19,6 +19,7 @@
 #include "uvm2_bus_stream.h"
 #endif
 #include "uvm2_led.h"
+#include "uvm2_config.h"
 
 int uvm2_game_main(void);          /* the game's own main(), renamed at compile time */
 void uvm2_runtime_init(void);      /* uvm2_svc.c */
@@ -130,6 +131,9 @@ int main(void)
      * and it must not start until the VIA has been programmed and the 6809 is
      * halted. */
     uvm2_core1_start();
+    /* Buttons 1+4 held at start: the calibration wizard, before the game. It needs core 1
+     * running — the wizard draws frames and the buttons come from core 1's cache. */
+    uvm2_config_boot_combo();
 #  endif
 #endif
     /* UVM2_STEP_OWNS_INIT: a diagnostic image that brings the machine up itself,

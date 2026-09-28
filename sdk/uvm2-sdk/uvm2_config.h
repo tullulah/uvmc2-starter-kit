@@ -4,20 +4,18 @@
  * the calibration is ONE thing and it is shared. What IS the game's own — VCAP, MIN_T1, the
  * scale of its geometry — stays where it is, in its Makefile.
  *
- * THE FLOW: every game calls `uvm2_config_load()` at startup. If a calibration exists it is
- * applied and the game carries on. If not, the game opens the wizard and saves on the way
- * out.
+ * THE FLOW: the runtime calls `uvm2_config_load()` before the game's main (uvm2_draw_init).
+ * If a calibration exists it is applied; if not, the compiled defaults stay — which were
+ * measured on ONE console. No game opens the wizard by itself: the user does, by holding
+ * buttons 1 and 4 while the game starts (uvm2_config_boot_combo), and it saves on the way out.
  *
- * WHERE IT COMES FROM AND WHERE IT IS SAVED, deliberately not the same place:
+ * WHERE IT COMES FROM AND WHERE IT IS SAVED:
  *
- *   - READS `config/uvm2.cfg` off the SD card if it is there. It is text, so it can be read
- *     and edited from the PC — which, while we are still tuning this, is worth more than
- *     convenience.
- *   - With no file, it reads the RP2350 FLASH.
- *   - ALWAYS SAVES to FLASH. The FAT reader in `uvm2_sd.c` is READ-ONLY: creating a file
- *     means allocating clusters and rewriting both copies of the FAT, and getting that
- *     wrong corrupts the user's card. Flash also survives swapping cards, which is the
- *     right behaviour for something that describes the CONSOLE.
+ *   - READS `config/uvm2.cfg` off the SD card if it is there. It is text (`zero 7`, one
+ *     field per line), so it can be read and edited from the PC.
+ *   - With no file, it reads the RP2350 FLASH, if an earlier build ever wrote there.
+ *   - SAVES to the SD card, `config/uvm2.cfg`. Never to flash: see save_to_flash_DO_NOT_USE
+ *     in uvm2_config.c for why.
  *
  * WHAT IS INSIDE, and why these four and not the eighteen drawing knobs. The error between
  * what is asked for and what the beam actually travels has TWO terms:
@@ -125,6 +123,12 @@ int  uvm2_config_wizard(void);
  *  own scale, and the wizard knows nothing about it. With `figure` null this is exactly
  *  `uvm2_config_wizard()`. */
 int  uvm2_config_wizard_with(void (*figure)(void));
+
+/** Opens the wizard before the game if buttons 1 and 4 are held while it starts. Called by the
+ *  runtime right after core 1 comes up; a game does not call it. The outcome is left in
+ *  `uvm2_boot_combo` (-1 never checked, 0 not held, 1 wizard ran, 2 could not check). */
+void uvm2_config_boot_combo(void);
+extern volatile int32_t uvm2_boot_combo;
 
 /** Saves the current calibration. 1 if it could.
  *

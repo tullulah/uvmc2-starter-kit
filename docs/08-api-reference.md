@@ -293,6 +293,7 @@ injector's own interface, called from inside the draw path.
 
 ```c
 void uvm2_print_text(int x,int y,const char *str,int scale,int intensity);
+void uvm2_print_text_chained(int x,int y,const char *str,int scale,int intensity); /* no per-glyph re-zero */
 
 void uvm2_led_init(void);
 void uvm2_led_rgb(uint8_t r,uint8_t g,uint8_t b);
@@ -350,6 +351,8 @@ int  uvm2_config_save(void);
 void uvm2_config_current(struct uvm2_config *c);
 void uvm2_config_apply(const struct uvm2_config *c);
 int  uvm2_config_wizard(void);
+void uvm2_config_boot_combo(void);          /* runtime: buttons 1+4 held at start -> wizard */
+extern volatile int32_t uvm2_boot_combo;    /* -1 unchecked, 0 not held, 1 ran, 2 could not check */
 void uvm2_config_game(const char *name,unsigned settings);
 extern volatile int uvm2_have_calibration;
 ```
@@ -357,6 +360,11 @@ extern volatile int uvm2_have_calibration;
 These belong to the machine the cartridge is plugged into, not to the game. A
 game normally only calls `uvm2_config_game()` to declare which settings its menu
 should offer.
+
+**To calibrate a console**, hold buttons 1 and 4 while the game starts: the
+wizard opens before the game. With ZERO selected it draws several lines of text
+the way a game draws them (no re-zero between glyphs); adjust until the rows run
+parallel to the long top line. Button 4 saves to `config/uvm2.cfg`.
 
 #### `uvm2_config_game(name, settings)`
 
