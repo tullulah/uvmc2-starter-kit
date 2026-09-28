@@ -73,7 +73,7 @@ Sizes are rounded; they tell you whether a file is a glance or a session.
 | `pitrex-sim/sdk_host.c` | — | The host/WASM implementation of that contract. |
 | `sdk/tools/package_um2.py` | 60 | The 20-byte `.um2` header. |
 
-## `third_party/fatfs/` — the file system
+## `sdk/third_party/fatfs/` — the file system
 
 ChaN's FatFs R0.16, unmodified except `ffconf.h`; `README.md` there lists which
 options differ from upstream and why.

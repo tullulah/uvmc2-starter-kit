@@ -33,6 +33,12 @@ sdk/vpy-c/              libvpy: shapes, sprites, text, input, sound.
 third_party/aae/        the arcade emulator sources game/tacscan is built on.
 ```
 
+**`sdk/` is a git submodule** — the SDK is its own repository
+([uvmc2-sdk](https://github.com/tullulah/uvmc2-sdk)), shared by every project that
+builds for the UVMC2 (this kit, Vectrex Studio, the private game repository).
+An SDK change is committed in `sdk/` (i.e. in uvmc2-sdk) and then the kit moves
+the submodule pointer; there is no second copy to keep in step.
+
 Build and verify:
 
 ```sh

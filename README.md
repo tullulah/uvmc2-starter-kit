@@ -58,8 +58,16 @@ rustup target add thumbv8m.main-none-eabi     # softfp bare-metal Cortex-M33
 ## 2. Set up
 
 ```sh
+git clone --recursive https://github.com/tullulah/uvmc2-starter-kit.git
+cd uvmc2-starter-kit
 ./setup.sh
 ```
+
+`sdk/` is a **git submodule**: the SDK is its own repository,
+[uvmc2-sdk](https://github.com/tullulah/uvmc2-sdk), shared with every other
+project that builds for the UVMC2. `setup.sh` fetches it if you cloned without
+`--recursive`. Changes to the SDK are made and committed **there**, then picked
+up here by moving the submodule.
 
 It checks the tools, adds the Rust bare-metal target, and shallow-clones
 **pico-sdk 2.2.0** into `third_party/pico-sdk` (it is not vendored: with its
@@ -98,7 +106,7 @@ CLAUDE.md                  orientation for an AI assistant working in this tree
 docs/                      how it all works, and why
 examples/hello_uvmc2/      the smallest complete game — START HERE
 game/tacscan/              the full worked example (arcade emulation)
-sdk/
+sdk/                       SUBMODULE: github.com/tullulah/uvmc2-sdk
   uvm2-sdk/                the UVM2 runtime: bus, draw, dual core, sound, SD, syscalls
     uvm2.mk                the build rule a game includes
     pico/ + uvm2_pico.cmake  the pico-sdk build behind it
@@ -109,9 +117,9 @@ sdk/
   vpy-c/                   libvpy: a small game library (shapes, text, input, sound)
   pitrex-sim/              the host/simulator side of the same API
   tools/package_um2.py     wraps a .bin in the 20-byte .um2 header
+  third_party/fatfs/       ChaN's FatFs: the SD card's file system (FAT + exFAT)
 third_party/
   aae/                     the arcade emulator sources tacscan is built on
-  fatfs/                   ChaN's FatFs: the SD card's file system (FAT + exFAT)
   pico-sdk/                cloned by setup.sh
 ```
 

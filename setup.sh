@@ -105,6 +105,19 @@ command -v emcc   >/dev/null && ok "emcc         (make sim: the WASM harness)" \
                              || warn "emscripten absent — only needed for 'make sim'"
 
 echo
+echo "== uvmc2-sdk (the sdk/ submodule) =="
+if [ -f "$KIT/sdk/uvm2-sdk/uvm2.mk" ]; then
+    ok "sdk/ at $(git -C "$KIT/sdk" log -1 --format='%h %ad' --date=short 2>/dev/null)"
+elif [ "$CHECK_ONLY" = 1 ]; then
+    die "sdk/ is empty — the SDK is a submodule (run ./setup.sh without --check, or git submodule update --init)"
+else
+    echo "  fetching the sdk/ submodule..."
+    git -C "$KIT" submodule update --init sdk
+    [ -f "$KIT/sdk/uvm2-sdk/uvm2.mk" ] || die "sdk/ submodule (git submodule update --init sdk)"
+    ok "fetched"
+fi
+
+echo
 echo "== pico-sdk $PICO_SDK_VERSION =="
 if [ -d "$PICO_SDK_DIR/.git" ]; then
     ok "already at $PICO_SDK_DIR"

@@ -116,7 +116,7 @@ Two modes, chosen with `uvm2_input_set_analog()`:
 
 ## The SD card
 
-`uvm2_sd.c` is a bit-banged SPI driver with **FatFs** (`third_party/fatfs`) on
+`uvm2_sd.c` is a bit-banged SPI driver with **FatFs** (`sdk/third_party/fatfs`) on
 top: FAT12/16/32 and exFAT, long names, MBR or GPT, reading and writing. It
 exists because the stock firmware loads the `.um2` and steps aside — it does not
 serve romsets or anything else.
