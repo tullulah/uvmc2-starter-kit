@@ -6,7 +6,12 @@
 # EVERY PATH IS RELATIVE TO THE KIT, never to $(HOME): this project must build
 # from wherever it was unpacked. The kit root is two levels up from this file
 # (<kit>/game/tacscan/Makefile), and the whole SDK lives under <kit>/sdk.
-UVMC2_KIT   ?= $(abspath $(dir $(lastword $(MAKEFILE_LIST)))../..)
+# := and not ?=: MAKEFILE_LIST grows with every include, so a deferred $(lastword ...)
+# would be computed from sdk/uvm2-sdk/uvm2.mk instead of from this file. (It happened to
+# land on the same directory here only because both sit two levels down.)
+ifndef UVMC2_KIT
+UVMC2_KIT   := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))../..)
+endif
 AAE_SRC     ?= $(UVMC2_KIT)/third_party/aae
 RP2350_SDK  ?= $(UVMC2_KIT)/sdk/rp2350-sdk
 
