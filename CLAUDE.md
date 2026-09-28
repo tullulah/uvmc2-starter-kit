@@ -13,6 +13,7 @@ reading the tree — these four pages exist so you do not have to:
 | know what a game may call | **`docs/08-api-reference.md`** — the complete surface, all three layers |
 | port an arcade game | **`docs/11-porting-from-mame.md`** (which route?) then **`docs/10-porting-an-aae-game.md`** (how) |
 | understand why something is the way it is | `docs/00-index.md` → 01–07, in order |
+| explain a picture that is wrong on one console and fine on another | **`docs/12-calibrating-a-console.md`** |
 
 The SDK's own comments are the primary record, and several files are worth
 reading in full before touching them: `uvm2_bus.h`, `uvm2_smp.h`,
@@ -168,6 +169,13 @@ There is no console on a cartridge, so measurement discipline substitutes for it
   (`game/tacscan/tools/host_test.c` is an example).
 
 ## Known state
+
+**The beam defaults were measured on one console.** Distortion reported from another
+console — text rows tilting into diagonals, columns cascading — is a calibration
+question first (`docs/12-calibrating-a-console.md`), not a drawing bug. The zero
+reference's default `0x23` (from Vectorblade) differs from what VecFever writes
+(`0x07`, in four bus captures); which one suits most consoles is open. Do not
+change the default without console measurements from more than one machine.
 
 `cargo test` in `sdk/vectrex-draw` passes with one test **ignored on purpose**,
 `emit::pentagon::ramp_error_has_no_bias`: it measures a real +0.0768 units per

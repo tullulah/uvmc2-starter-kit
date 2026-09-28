@@ -21,6 +21,7 @@ know X" to the one file that answers it. If you are about to port an arcade game
 | [09 — Source map](09-source-map.md) | What lives in which file, and an index from *question* to *file* |
 | [10 — Porting an AAE game](10-porting-an-aae-game.md) | The eight pieces you write, from the worked example |
 | [11 — Porting from MAME](11-porting-from-mame.md) | The three routes, and how to choose between them |
+| [12 — Calibrating a console](12-calibrating-a-console.md) | Why the beam is calibrated per console, the calibration screen (buttons 2+3 at launch), and what each field fixes |
 
 Two conventions worth knowing before you start:
 

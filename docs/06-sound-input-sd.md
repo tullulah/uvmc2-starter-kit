@@ -134,6 +134,19 @@ Paths are relative to the root, any depth, long names allowed, compared
 case-insensitively. `uvm2_sd_create` and `uvm2_sd_write` create missing folders
 and replace an existing file.
 
+For a large file read in slices (audio, captures), open it once and keep reading:
+
+```c
+typedef struct { uint32_t cluster, sec, pos, len; int ok; /* ... */ } uvm2_sd_file;
+int      uvm2_sd_open (const char *path, uvm2_sd_file *f);   /* 1 = found */
+uint32_t uvm2_sd_next (uvm2_sd_file *f, unsigned char *dst, uint32_t max);   /* 0 = end */
+void     uvm2_sd_close(uvm2_sd_file *f);                     /* optional */
+```
+
+`uvm2_sd_read_from` re-mounts and seeks from the start of the file on every
+call, which for a large file is O(n²) (loading 1.8 MB of audio took minutes).
+`uvm2_sd_next` carries on from where the last slice ended.
+
 Things worth knowing:
 
 * **There is no card-detect pin.** The firmware configures none, so "no card" and
@@ -151,7 +164,10 @@ Things worth knowing:
   with `NO_FAT` — reported by a user as arcade ports that "worked for basic
   functions" until they needed their romset.
 * **Every call mounts afresh**, re-initialising the card: with no detect pin that
-  is the only way a swapped card is noticed.
+  is the only way a swapped card is noticed. **Except while a file is open**
+  through `uvm2_sd_open`, because a remount would invalidate it. So a game that
+  streams can still read or save other files in between; `uvm2_sd_diag.streams`
+  says how many are open.
 * **`uvm2_sd_diag` says what was mounted** (`fs_type`: 2 FAT16, 3 FAT32, 4 exFAT),
   the raw FatFs `fresult` behind the last error, and `reads`/`writes` block
   counters — if those do not move, the card was never touched.
@@ -161,6 +177,13 @@ Things worth knowing:
   FAT16, FAT32 and exFAT (MBR and GPT) images with macOS's own tools, reads and
   writes them through `uvm2_sd.c`, and requires `fsck -n` to come out clean and
   the Mac to read back what was written.
+
+* **The calibration lives on the card** (`config/uvm2.cfg`) and is written by
+  the calibration screen through `uvm2_sd_create`/`uvm2_sd_overwrite`: see
+  [12](12-calibrating-a-console.md).
+* **FatFs is compiled with `-Os`**, like the rest of the cold code (start-up,
+  calibration, PSRAM bring-up). At `-O3` it is 19.9 KB, and that cost two ports
+  their last 13 KB of SRAM.
 
 ### Romsets
 

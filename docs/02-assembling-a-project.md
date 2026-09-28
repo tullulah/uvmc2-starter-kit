@@ -92,7 +92,7 @@ them has a long comment there explaining what it cost to learn.
 | `UVM2_PIO_STREAM` | `1` | The replay goes out through PIO + DMA instead of the CPU poking GPIO. Setting it to 0 does **not** remove the Rust dependency — the beam model is Rust and always links. |
 | `UVM2_HZ` | `50` | Refresh cap. `60` for 60 Hz mains, `0` = present as soon as the list is ready. |
 | `UVM2_CMD_CAPACITY` | 8192 | Commands the list can hold — 3 bytes each, per buffer, two buffers. Watch `stats.dropped`. |
-| `UVM2_LIST_MAX` | 12288 | Words in the PIO stream's buffer. **Dead in dual core** — lower it to 64 and reclaim 98 KB. |
+| `UVM2_LIST_MAX` | 64 in dual core | Words in the PIO stream's buffer. It is only used on the single-core path, so a dual-core game gets the minimum and the 98 KB the crate's 12288 would take stay free. Setting it still wins. |
 | `UVM2_CMDS_IN_PSRAM` | off | Put the command list in PSRAM. Frees SRAM, costs determinism. |
 | `UVM2_ROMZIP_IN_PSRAM` | auto | Put the SD romset buffer in PSRAM (write-once, read-once — the ideal case). |
 | `UVM2_SRCS_DROP` | `libc_stub.c` | Sources to drop on this path only (the pico-sdk brings newlib; hand-written stubs collide). |
@@ -134,7 +134,10 @@ phosphor. If it "looks better at 60", some of that is brightness, not smoothness
 * your sources and `sdk/rp2350-sdk/sdk_rp2350.c` (the game-facing API);
 * the whole of `sdk/uvm2-sdk/` (bus, draw, input, text, LED, SD, romzip, audio,
   samples, the SVC handler, and `uvm2_core1.c` under dual core);
-* `libvectrex_draw_cabi.a` and `libvectrex_bus_cabi.a`, built by cargo;
+* `libvectrex_draw_cabi.a` and `libvectrex_bus_cabi.a`, built by cargo into the
+  game's own build directory (`build_uvm2/pico/cargo-target`), never into the SDK:
+  what they contain depends on the game, and a shared copy let two games built at
+  once link each other's;
 * the pico-sdk pieces it needs: crt0, runtime init, multicore, PIO, DMA, flash.
 
 Board definition: `olimex_rp2350_xxl`, a stock pico-sdk board whose GPIO map

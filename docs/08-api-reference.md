@@ -53,7 +53,28 @@ void vpy_draw_ellipse(int cx,int cy,int rx,int ry,int b);     /* 16 segments */
 void vpy_draw_rect(int x,int y,int w,int h,int b);            /* x,y = lower-left */
 void vpy_draw_filled_rect(int x,int y,int w,int h,int b);     /* hatched, 3 units apart */
 void vpy_draw_polygon(const int *xy,int n,int b);             /* n vertices, xy[2n] */
+void vpy_draw_line_dev(int32_t x0,int32_t y0,int32_t x1,int32_t y1,int b);  /* deflection units */
 ```
+
+**Every drawing call goes through a stroke buffer** (1024 strokes) and reaches
+`v_directDraw32` only when the frame is flushed: by `vpy_run`, `vpy_frame_begin`
+or `vpy_wait_recal`. A game that calls `v_WaitRecal()` directly never flushes and
+draws nothing. `vpy_draw_stats()->frames` stuck at 0 is the sign.
+
+```c
+void vpy_flush(void);
+void vpy_wait_recal(void);                 /* flush, then v_WaitRecal */
+void vpy_set_priority(int p);              /* VPY_PRI_LOW 0 / NORMAL 128 / KEEP 255 */
+int  vpy_pending_strokes(void);
+const vpy_draw_stats_t *vpy_draw_stats(void);   /* frames, strokes, peak, shed, dropped, clamped */
+int  vpy_sin_q14(int a), vpy_cos_q14(int a);    /* 4096 steps per turn, 16384 = 1.0 */
+```
+
+When the buffer is full, a stroke evicts a lower-priority one or is dropped. That
+is the game library choosing, not the SDK: the SDK draws what it is asked
+(invariant 4). It is always counted, so if `shed` or `dropped` is non-zero, the
+frame on screen is not the frame the game built. `vpy3d.h` is a small 3D layer
+(meshes, camera, projection) on top of the same buffer.
 
 ### Compiled assets
 
@@ -289,6 +310,20 @@ should. It costs about 6% more bus cycles.
 The rest of the header (`uvm2_smp_frame/due/needs_latch/mixer/note_mixer`) is the
 injector's own interface, called from inside the draw path.
 
+The UVMC2 also has a **16-bit audio jack** (a PT8211 on GPIO43-45), independent
+of the Vectrex's sound chip. `uvm2_jack.h`:
+
+```c
+#define UVM2_JACK_RATE 32000
+int  uvm2_jack_init(void);                      /* 1 = running, 0 = no jack on this board */
+int  uvm2_jack_space(void);                     /* samples to write now to stay ahead */
+void uvm2_jack_write(const int16_t *s,int n);   /* mono, UVM2_JACK_RATE */
+```
+
+It runs on the system clock measured against the Vectrex's E at boot. The per-game
+`audio` setting (`UVM2_SETTING_AUDIO`, 0 = jack, 1 = console chip) is stored for
+the game to read; the SDK does not route sound itself.
+
 ### Text, LED, clock — `uvm2_text.h`, `uvm2_led.h`
 
 ```c
@@ -316,6 +351,9 @@ uint32_t uvm2_sd_read_from(const char *path,unsigned char *dst,uint32_t max,uint
 int      uvm2_sd_create(const char *path,const unsigned char *data,uint32_t n);   /* 512-byte text file */
 int      uvm2_sd_overwrite(const char *path,const unsigned char *data,uint32_t n);/* 1 sector, in place */
 int      uvm2_sd_write(const char *path,const unsigned char *data,uint32_t n);    /* any size */
+int      uvm2_sd_open(const char *path,uvm2_sd_file *f);                         /* stream a large file */
+uint32_t uvm2_sd_next(uvm2_sd_file *f,unsigned char *dst,uint32_t max);          /* 0 = end */
+void     uvm2_sd_close(uvm2_sd_file *f);                                         /* optional */
 extern int uvm2_sd_error;   /* OK / NO_CARD / NO_INIT / NO_FAT / MISSING / TOO_BIG / IO_ERROR */
 extern struct uvm2_sd_diag uvm2_sd_diag;   /* what the mount understood about the disk */
 
@@ -345,6 +383,7 @@ struct uvm2_config {
     int32_t hz;           /* 50, 60, or 0 = free */
     int32_t start_menu;   /* 1 = menu on power-up */
     int32_t rotate;       /* 1 = drawing rotated 90 degrees */
+    int32_t audio;        /* 0 = the jack, 1 = the console's chip (game setting) */
 };
 int  uvm2_config_load(void);
 int  uvm2_config_save(void);
@@ -362,9 +401,9 @@ game normally only calls `uvm2_config_game()` to declare which settings its menu
 should offer.
 
 **To calibrate a console**, hold buttons 2 and 3 and launch the game with 4: the
-wizard opens before the game. With ZERO selected it draws several lines of text
-the way a game draws them (no re-zero between glyphs); adjust until the rows run
-parallel to the long top line. Button 4 saves to `config/uvm2.cfg`.
+wizard opens before the game. Button 4 saves to `config/uvm2.cfg`. What each
+screen shows and which field fixes what is in
+[12 — Calibrating a console](12-calibrating-a-console.md).
 
 #### `uvm2_config_game(name, settings)`
 
@@ -372,7 +411,7 @@ Two files, split by **whose** settings they are:
 
 | file | holds | written by |
 |---|---|---|
-| `config/uvm2.cfg` | the beam calibration (`scale` … `drift_y`): the console's, shared by every game | the first game to start creates it |
+| `config/uvm2.cfg` | the beam calibration (`scale` … `drift_y`): the console's, shared by every game | the calibration screen, when you save |
 | `config/<NAME>.cfg` | the game's own settings, layered on top of the console's | only the settings the game declared |
 
 `name` is the game's 8.3 base name, no extension (`"TACSCAN"`). `settings` is an
@@ -383,10 +422,14 @@ OR of:
 | `UVM2_SETTING_HZ` | 1 | refresh 50 / 60 / 0 (free) → `hz` |
 | `UVM2_SETTING_MENU` | 2 | menu on power-up; with it off, button 4 still forces the menu → `start_menu` |
 | `UVM2_SETTING_ROTATE` | 4 | drawing rotated 90° for a horizontal arcade game → `rotate` |
+| `UVM2_SETTING_AUDIO` | 8 | sound out of the jack or the console's chip → `audio` |
 
-Call it **before** `uvm2_config_load()`. Declare only what means something in
-your game: a vertical game should not offer `ROTATE`. Not calling it at all gives
-the old behaviour — one file, and no game settings in the wizard.
+The runtime has already loaded the console's file before your `main` runs, so call
+`uvm2_config_load()` again after declaring, and the game's file is layered on top.
+Declare only what means something in your game: a vertical game should not offer
+`ROTATE`. Not calling it at all gives one file, and no game settings in the
+wizard. The buttons-2+3 wizard opens before `main`, so it shows only the
+console's fields; a game's own menu that calls `uvm2_config_wizard()` shows both.
 
 ```c
 uvm2_config_game("MYGAME", UVM2_SETTING_HZ | UVM2_SETTING_MENU);

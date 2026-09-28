@@ -171,8 +171,9 @@ what removes it.
 In dual core, core 1 pushes the list in 64-word batches
 (`vectrex-bus`'s `BATCH_BUF`) and the DMA drains them. Note that the big
 `LIST_BUF` (12 288 words, **98 KB**) is *only* used on the single-core path — in
-dual core it is never written. A tight dual-core game should set
-`UVM2_LIST_MAX=64` and spend those 98 KB on something that draws.
+dual core it is never written. So since 2026-09-28 a dual-core game gets
+`UVM2_LIST_MAX=64` by default (`uvm2_pico.cmake`) and those 98 KB stay free for
+something that draws.
 
 ---
 

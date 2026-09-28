@@ -83,7 +83,26 @@ cd game/tacscan        && make uvm2      # -> build_uvm2/aae_tacscan.um2   (~143
 
 ## 4. Run it
 
-Copy the `.um2` to the cartridge's SD card and pick it from the multicart menu.
+### The SD card
+
+FAT32 or exFAT, any size. The multicart's menu and the games both read either.
+Games built before 2026-09-28 read FAT32 only; on an exFAT card they start and
+then cannot find their romset, so rebuild them.
+
+```
+/                      the .um2 images, and any sound bundle a game ships (tacscan.vsm)
+roms/<game>.zip        romsets, read by the game itself at start-up
+config/uvm2.cfg        this CONSOLE's beam calibration (written by the wizard)
+config/<GAME>.CFG      per-game settings, for games that declare any
+```
+
+`config/` is created the first time a calibration is saved. Do not copy a
+`config/uvm2.cfg` from another console: it describes that console's analog parts,
+not yours. See [12](docs/12-calibrating-a-console.md).
+
+### A game
+
+Copy the `.um2` to the root of the card and pick it from the multicart menu.
 For `tacscan` also copy:
 
 * `game/tacscan/roms/tacscan.zip` → `roms/tacscan.zip` on the card
@@ -95,6 +114,15 @@ For `tacscan` also copy:
 
 If a romset is missing the game says so on screen, with the path it tried. It
 does not fail silently.
+
+### Calibrating the console
+
+If text leans into diagonals, columns cascade to one side, or glyphs fall apart,
+while native cartridges look fine on the same console, the console needs
+calibrating. It is not a broken image. **Hold buttons 2 and 3 and launch any game
+with 4**: the calibration screen opens first. Button 4 saves and starts the game.
+Every game built with this SDK then uses that calibration.
+[docs/12](docs/12-calibrating-a-console.md) explains the screen.
 
 ---
 
@@ -139,6 +167,12 @@ decides which kind of port yours is) and then `docs/10-porting-an-aae-game.md`.
 answers it, and `docs/08-api-reference.md` is the complete API.
 
 ## 7. Known state
+
+* **The beam defaults were measured on one console.** Any other console should be
+  calibrated once ([12](docs/12-calibrating-a-console.md)). The zero reference's
+  default (`0x23`, from Vectorblade) differs from what the VecFever cartridge
+  writes (`0x07`). Which one fits most consoles is still an open question, and
+  the calibration exists so that it does not have to be answered first.
 
 * `cargo test` in `sdk/vectrex-draw` passes, with **one test ignored on
   purpose**: `emit::pentagon::ramp_error_has_no_bias`. It finds a real bias of

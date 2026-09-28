@@ -26,12 +26,13 @@ Sizes are rounded; they tell you whether a file is a glance or a session.
 | `uvm2_input.c/.h` | 240 | Buttons, joysticks (digital and SAR analog), PSG access. |
 | `uvm2_audio.c/.h` | 230 | `.vmus` / `.vsfx` sequencers, and the PSG mixer shadow. |
 | `uvm2_smp.c/.h` | 580+230 | Digitised samples through the volume DAC. **The `.h` carries the whole model**; read it, not the `.c`. |
-| `uvm2_sd.c/.h` | 450+70 | Bit-banged SPI to the card, and the API over FatFs (FAT12/16/32 + exFAT). |
+| `uvm2_sd.c/.h` | 490+105 | Bit-banged SPI to the card, and the API over FatFs (FAT12/16/32 + exFAT): whole files, slices, an open file for streaming, writes. |
 | `uvm2_romzip.c` | 100 | Reads `roms/<game>.zip` off the card and publishes the `'RMZ1'` descriptor. |
 | `uvm2_psram.c/.h` | 1150+220 | Brings up the 8 MB on CS1, plus three diagnostic probes. |
 | `uvm2_config.c/.h` | 370+145 | Per-**console** beam calibration, on the SD card. The `.h` explains every field. |
-| `uvm2_wizard.c` | 280 | The on-screen calibration screen. |
-| `uvm2_text.c/.h`, `uvm2_font.h` | 170 | A 4×6 stroke font, ASCII 32..90, and `uvm2_print_text`. |
+| `uvm2_wizard.c` | 360 | **The calibration screen**: the text pattern for ZERO, the wheel and the two squares, and the buttons 2+3 check at launch. Read with [12](12-calibrating-a-console.md). |
+| `uvm2_jack.c/.h` | 240+60 | The UVMC2's PT8211 16-bit audio jack: PIO2 + DMA, 32 kHz mono. A driver, not a sound engine. |
+| `uvm2_text.c/.h`, `uvm2_font.h` | 170 | A 4×6 stroke font, ASCII 32..90: `uvm2_print_text` (re-zeroes per glyph) and `uvm2_print_text_chained` (draws like a game, for the zero calibration). |
 | `uvm2_led.c/.h` | 155 | The status LED — the bring-up channel of last resort — and clock calibration. |
 | `uvm2_bus_stream.h` | 46 | The C face of the Rust bus crate. No implementation here. |
 | `memmap_psram.ld` | 350 | Opt-in: link the whole image into PSRAM. Its comments are the best account of what does and does not belong in external memory. |
@@ -68,7 +69,8 @@ Sizes are rounded; they tell you whether a file is a glance or a session.
 | file | ~lines | what it is |
 |---|---|---|
 | `vpy-c/include/vpy.h` | 160 | The game library's API, with the asset formats described per group. |
-| `vpy-c/vpy.c` | 1540 | Its implementation: shapes, `.vec`/`.vanim` readers, text, math, the level and enemy runtimes. |
+| `vpy-c/vpy.c` | 1700 | Its implementation: shapes, `.vec`/`.vanim` readers, text, math, the level and enemy runtimes, and the **stroke buffer** every drawing call goes through (flushed once per frame). |
+| `vpy-c/include/vpy3d.h`, `vpy-c/vpy3d.c` | 215+620 | A small 3D layer in C (meshes, camera, projection), drawing through the stroke buffer. |
 | `pitrex-sim/include/vectrex/vectrexInterface.h` | 75 | **The backend-neutral contract.** 20 declarations; the most important file in the kit per byte. |
 | `pitrex-sim/sdk_host.c` | — | The host/WASM implementation of that contract. |
 | `sdk/tools/package_um2.py` | 60 | The 20-byte `.um2` header. |
@@ -144,7 +146,8 @@ for ever).
 | how to read `uvm2_stats` on a running console, and how the probe is wired | [07](07-measuring.md) "Reading them over SWD", `sdk/uvm2-sdk/tools/stats.py` |
 | how an arcade game is ported | [10](10-porting-an-aae-game.md), then `game/tacscan/src/aae_machine.c` |
 | how to go from a MAME driver | [11](11-porting-from-mame.md) |
-| what is calibrated per console | `sdk/uvm2-sdk/uvm2_config.h` |
+| what is calibrated per console, and how | [12](12-calibrating-a-console.md), then `sdk/uvm2-sdk/uvm2_config.h` |
+| why text leans into diagonals on some consoles | [12](12-calibrating-a-console.md), "The zero" |
 
 ## Files whose *comments* are the documentation
 

@@ -87,7 +87,9 @@ A re-zero costs commands, so it is a trade, not a free win.
 `uvm2_zero_offset` is the value primed into the zero reference and belongs to the
 **console**, not to the game (see `uvm2_config.h`). The Vectrex BIOS writes 0
 there; other cartridges write a non-zero value per console and per scale, which is
-why a calibration file exists.
+why a calibration file exists. A wrong value adds the same velocity to every ramp,
+which tilts rows of text into diagonals: see
+[12 — Calibrating a console](12-calibrating-a-console.md).
 
 ## What actually costs time
 
