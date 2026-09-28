@@ -351,7 +351,7 @@ int  uvm2_config_save(void);
 void uvm2_config_current(struct uvm2_config *c);
 void uvm2_config_apply(const struct uvm2_config *c);
 int  uvm2_config_wizard(void);
-void uvm2_config_boot_combo(void);          /* runtime: buttons 1+4 held at start -> wizard */
+void uvm2_config_boot_combo(void);          /* runtime: buttons 2+3 held at launch -> wizard */
 extern volatile int32_t uvm2_boot_combo;    /* -1 unchecked, 0 not held, 1 ran, 2 could not check */
 void uvm2_config_game(const char *name,unsigned settings);
 extern volatile int uvm2_have_calibration;
@@ -361,7 +361,7 @@ These belong to the machine the cartridge is plugged into, not to the game. A
 game normally only calls `uvm2_config_game()` to declare which settings its menu
 should offer.
 
-**To calibrate a console**, hold buttons 1 and 4 while the game starts: the
+**To calibrate a console**, hold buttons 2 and 3 and launch the game with 4: the
 wizard opens before the game. With ZERO selected it draws several lines of text
 the way a game draws them (no re-zero between glyphs); adjust until the rows run
 parallel to the long top line. Button 4 saves to `config/uvm2.cfg`.
