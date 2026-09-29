@@ -226,13 +226,16 @@ problem, not a snippet:
   out of 24000**. Peaks clamping is the right trade — a clamp is a flattened
   transient, a wrap is a crack.
 * **The load happens while the game runs, and there is no loading screen.** 2.64 MB
-  off a bit-banged card is not free, but nothing needs to wait for it: one 8 KB slice
+  off the card is not free, but nothing needs to wait for it: one 8 KB slice
   per frame from the game loop, and a sound plays as soon as **its own** bytes have
   arrived (`ts_jack_avail`). Until then that one sound goes out of the console's path,
   so the first seconds sound like a game rather than like silence. Measured: 322
   frames (~8 s at 40 Hz) for the last sound, 45 (~1.1 s) for the ship's roar — which
   is first in `samples.json`, so what the attract mode reaches first is what lands
-  first. It runs **only if the player chose the jack**, which is decidable because the
+  first. **Those two numbers were measured over the bit-banged SPI, at ~300 KB/s**;
+  the driver now uses the SPI0 peripheral at 12.5 MHz and they have not been taken
+  again. They are the honest worst case, not the current behaviour. It runs **only
+  if the player chose the jack**, which is decidable because the
   menu is the boot wizard and has already closed by then.
 * **`make jack-preview`** builds the real mixer for the desktop against the real
   bundle and writes `build/jack_preview.wav`. A mixer whose headroom and looping are
@@ -280,10 +283,20 @@ Two modes, chosen with `uvm2_input_set_analog()`:
 
 ## The SD card
 
-`uvm2_sd.c` is a bit-banged SPI driver with **FatFs** (`sdk/third_party/fatfs`) on
-top: FAT12/16/32 and exFAT, long names, MBR or GPT, reading and writing. It
-exists because the stock firmware loads the `.um2` and steps aside — it does not
-serve romsets or anything else.
+`uvm2_sd.c` drives the card over the RP2350's **SPI0 peripheral** (GPIO34 SCK,
+35 MOSI, 36 MISO; CS is a plain GPIO, 39 on this board) with **FatFs**
+(`sdk/third_party/fatfs`) on top: FAT12/16/32 and exFAT, long names, MBR or GPT,
+reading and writing. It exists because the stock firmware loads the `.um2` and
+steps aside — it does not serve romsets or anything else.
+
+It was bit-banged until 2026-09-29, at ~300 KB/s — 27 seconds to fill the 8 MB of
+PSRAM. The peripheral runs at 12.5 MHz, and the clock is deliberately **half** the
+25 MHz the SD spec allows in SPI mode: nothing here checks the CRC, so a corrupt
+byte would arrive silently and look like a corrupt file system. Check the CRC16
+first, then raise `UVM2_SD_BAUD_FAST`. `uvm2_sd_diag.baud` reports the clock the
+divider actually produced, which is not what was asked for. Building with
+`-DUVM2_SD_BITBANG` brings the old transport back over the same pins, so a card
+that reads one way and not the other tells you the speed is the fault.
 
 ```c
 int      uvm2_sd_init(void);
