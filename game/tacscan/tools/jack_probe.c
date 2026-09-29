@@ -22,6 +22,10 @@
 /* ---- the PSRAM window, as a plain buffer ---- */
 #define PSRAM_BYTES (8u * 1024u * 1024u)
 unsigned char *probe_psram;
+/* Advanced by TS_NOW(); see jack_probe.h. 200 us per chunk read is roughly what the estimate
+ * for a bit-banged 1 KB gives, so the deadline divides the load into about the number of
+ * passes the cartridge would take. */
+unsigned probe_us;
 
 /* ---- the SD card, as one file ---- */
 static FILE    *s_fp;

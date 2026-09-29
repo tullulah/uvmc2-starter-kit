@@ -42,13 +42,34 @@ extern int uvm2_psram_ready;
 #define TS_PSRAM_READ  ((const unsigned char *)(uintptr_t)0x11000000u)
 #endif
 
-/* HOW MUCH PER FRAME. The bundle comes in WHILE THE GAME RUNS, so a slice has to fit inside
- * a frame with room to spare: 8 KB per 25 ms asks 320 KB/s of the card, which is modest.
- * 32 KB would have asked 1.3 MB/s and blown the frame on a slower one.
+/* HOW MUCH PER FRAME, AND IT IS A TIME BUDGET AND NOT A SIZE.
  *
- * At 8 KB the 2.64 MB takes 322 frames, about 8 seconds at 40 Hz, and the first sound the
- * game uses is in after 45 of them. Nobody waits for any of it: see the note in main.c. */
-#define TS_SLICE 8192u
+ * A fixed slice was the first shape and it is the wrong one, because the size that fits in a
+ * frame depends on a number nobody has measured: the card's throughput. The driver is
+ * bit-banged SPI (uvm2_sd.c's xfer shifts eight bits with two ticks each), and from the
+ * instruction count that is roughly 2 us a byte — so 8 KB would be ~15 ms of a 25 ms frame
+ * and 32 KB would be two and a half frames. An estimate, which is exactly why it must not be
+ * the thing the design rests on.
+ *
+ * So: read in small chunks until a DEADLINE, and measure what that bought. A fast card does
+ * many chunks and the bundle lands sooner; a slow one does one and the frame still closes on
+ * time. The question stops being "which size is safe" and becomes "how much of the frame am I
+ * willing to spend", which is answerable without knowing the card.
+ *
+ * ONE CHUNK IS STILL UNAVOIDABLE, so it is sector-sized rather than large: whatever the card
+ * turns out to be, 1 KB cannot cost more than about 2 ms of the frame at the estimate above,
+ * and the deadline catches everything after that.
+ *
+ * Both are overridable, because the deadline is the knob this trade is made with:
+ *
+ *     make uvm2 UVM2_CFLAGS_EXTRA=-DTS_LOAD_US=10000
+ */
+#ifndef TS_LOAD_US
+#define TS_LOAD_US 6000u      /* of a 25 ms frame at 40 Hz */
+#endif
+#ifndef TS_CHUNK
+#define TS_CHUNK   1024u
+#endif
 
 static uvm2_sd_file  s_file;
 static uint32_t      s_got;        /* bytes written into PSRAM so far */
@@ -62,6 +83,26 @@ static int           s_jack;
  * bundle. */
 uint32_t ts_jack_err;            /* 0 = fine; see TS_JACK_E* below */
 uint32_t ts_jack_bytes;          /* what the load actually read */
+
+/* WHAT THE CARD TURNED OUT TO BE, which is the number the whole load schedule wants and
+ * which no datasheet here gives. Read them over SWD:
+ *
+ *     probe-rs read b32 --chip RP235x <&ts_jack_kbps> 3
+ *
+ * ts_jack_kbps is the throughput measured across the last pass, so it converges within a
+ * frame of the load starting. ts_jack_us_max is the worst pass: if it is anywhere near the
+ * 25 ms frame, the deadline is too generous whatever the average says. */
+uint32_t ts_jack_kbps;           /* measured, KB/s */
+uint32_t ts_jack_us;             /* the last pass */
+uint32_t ts_jack_us_max;         /* the worst pass */
+
+/* TIMER0's TIMELR, the same 1 MHz source uvm2_frame_end paces against. One MMIO read per
+ * chunk, which against a 2 ms chunk is not an instrument that perturbs its measurement.
+ * Overridable for the same reason as the PSRAM windows: tools/jack_probe.c runs this file on
+ * a desktop, where that address is not a timer. */
+#ifndef TS_NOW
+#define TS_NOW() (*(volatile uint32_t *)0x400B000Cu)
+#endif
 #define TS_JACK_E_NOJACK  1u
 #define TS_JACK_E_NOPSRAM 2u
 #define TS_JACK_E_NOFILE  3u
@@ -104,32 +145,50 @@ int ts_jack_begin(void)
 int ts_jack_load_step(void)
 {
     if (!s_loading) return 1;
-    uint32_t n = uvm2_sd_next(&s_file, TS_PSRAM_WRITE + s_got, TS_SLICE);
-    s_got += n;
-    /* THE MAGIC IS CHECKED AS SOON AS IT IS IN, not at the end. A bundle or nothing: a
-     * truncated read or the wrong file would otherwise be played as whatever those bytes
-     * happen to be, and on a 16-bit DAC that is full-scale noise — loud, through a line
-     * output, into somebody's amplifier. Checking it early also means routing can start
-     * after the first slice instead of after the last. */
-    if (!s_hdr && s_got >= 8u) {
-        if (TS_PSRAM_READ[0] == 'K' && TS_PSRAM_READ[1] == 'S' &&
-            TS_PSRAM_READ[2] == 'F' && TS_PSRAM_READ[3] == 'X') {
-            s_hdr = 1;
-        } else {
-            ts_jack_err = TS_JACK_E_BADFILE;
+
+    const uint32_t t0 = TS_NOW();
+    uint32_t got = 0;
+
+    do {
+        const uint32_t n = uvm2_sd_next(&s_file, TS_PSRAM_WRITE + s_got, TS_CHUNK);
+        s_got += n;
+        got   += n;
+
+        /* THE MAGIC IS CHECKED AS SOON AS IT IS IN, not at the end. A bundle or nothing: a
+         * truncated read or the wrong file would otherwise be played as whatever those bytes
+         * happen to be, and on a 16-bit DAC that is full-scale noise — loud, through a line
+         * output, into somebody's amplifier. Checking it early also means routing can start
+         * after the first chunk instead of after the last. */
+        if (!s_hdr && s_got >= 8u) {
+            if (TS_PSRAM_READ[0] == 'K' && TS_PSRAM_READ[1] == 'S' &&
+                TS_PSRAM_READ[2] == 'F' && TS_PSRAM_READ[3] == 'X') {
+                s_hdr = 1;
+            } else {
+                ts_jack_err = TS_JACK_E_BADFILE;
+                uvm2_sd_close(&s_file);
+                s_loading = 0;
+                break;
+            }
+        }
+
+        if (n == 0u || s_got >= s_size) {
             uvm2_sd_close(&s_file);
             s_loading = 0;
-            return 1;
+            ts_jack_bytes = s_got;
+            if (s_got < s_size) ts_jack_err = TS_JACK_E_BADFILE;  /* the card stopped short */
+            break;
         }
+    } while (TS_NOW() - t0 < TS_LOAD_US);
+
+    {
+        const uint32_t us = TS_NOW() - t0;
+        ts_jack_us = us;
+        if (us > ts_jack_us_max) ts_jack_us_max = us;
+        /* got bytes in us microseconds -> got*1000/us is KB/s, in integers and without
+         * overflowing: got is at most a few tens of KB. */
+        if (us) ts_jack_kbps = (got * 1000u) / us;
     }
-    if (n == 0 || s_got >= s_size) {
-        uvm2_sd_close(&s_file);
-        s_loading = 0;
-        ts_jack_bytes = s_got;
-        if (s_got < s_size) ts_jack_err = TS_JACK_E_BADFILE;   /* the card stopped short */
-        return 1;
-    }
-    return 0;
+    return s_loading ? 0 : 1;
 }
 
 int ts_jack_load_percent(void)
