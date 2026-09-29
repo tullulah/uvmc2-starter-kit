@@ -17,16 +17,26 @@
  * and the console path is the only one. */
 int  ts_jack_begin(void);
 
-/* ONE SLICE OF THE LOAD, called once per frame while the title screen says so. 2.64 MB over
- * a bit-banged SPI card is not something to do inside one frame: see the note in ts_jack.c.
- * Returns 1 when there is no more to do (loaded, or failed and given up). */
+/* ONE SLICE OF THE LOAD, called once per frame FROM THE GAME LOOP. The bundle comes in while
+ * the game plays — there is no loading screen, because 2.64 MB is a couple of seconds of card
+ * and the attract mode is running anyway. Returns 1 when there is no more to do.
+ *
+ * Safe to keep calling after that; it returns 1 and does nothing. */
 int  ts_jack_load_step(void);
 
-/* 0..100, for the loading line. */
+/* 0..100. Not for a progress bar — nothing waits for this — but the number is the answer to
+ * "is the card actually feeding us?", which over SWD is the difference between a slow card
+ * and a stalled read. */
 int  ts_jack_load_percent(void);
 
-/* 1 = the jack is up AND the bundle is in PSRAM, so it can actually play. */
+/* 1 = the jack is up and the bundle's TABLE has arrived, so sounds can start being routed
+ * here. It does not mean every sound is in: see ts_jack_avail. */
 int  ts_jack_ready(void);
+
+/* 1 = sound `idx`'s own bytes are all in PSRAM, so it can play RIGHT NOW. While the bundle is
+ * still arriving this is how samples.c decides, per sound, whether to use the jack or fall
+ * back to the console for that one — which is why the first seconds are not silent. */
+int  ts_jack_avail(int idx);
 
 /* AAE's sample interface, voice-for-voice. `idx` indexes samples.json exactly as the
  * console path's does, so the two are interchangeable. */

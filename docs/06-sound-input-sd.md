@@ -225,13 +225,24 @@ problem, not a snippet:
   Measured on the host with `make jack-preview`: four voices at once clamp **6 samples
   out of 24000**. Peaks clamping is the right trade — a clamp is a flattened
   transient, a wrap is a crack.
-* **The load is 2.64 MB off a bit-banged card, so it is not free.** It happens in
-  32 KB slices with a percentage on screen, and **only if the player asked for the
-  jack** — spending the wait on a bundle nobody is going to hear would tax everyone
-  who prefers the console. Switching to the jack in the menu runs the load then.
+* **The load happens while the game runs, and there is no loading screen.** 2.64 MB
+  off a bit-banged card is not free, but nothing needs to wait for it: one 8 KB slice
+  per frame from the game loop, and a sound plays as soon as **its own** bytes have
+  arrived (`ts_jack_avail`). Until then that one sound goes out of the console's path,
+  so the first seconds sound like a game rather than like silence. Measured: 322
+  frames (~8 s at 40 Hz) for the last sound, 45 (~1.1 s) for the ship's roar — which
+  is first in `samples.json`, so what the attract mode reaches first is what lands
+  first. It runs **only if the player chose the jack**, which is decidable because the
+  menu is the boot wizard and has already closed by then.
 * **`make jack-preview`** builds the real mixer for the desktop against the real
   bundle and writes `build/jack_preview.wav`. A mixer whose headroom and looping are
-  only ever exercised by flashing a card is one nobody has actually checked.
+  only ever exercised by flashing a card is one nobody has actually checked. It also
+  checks the partial case, which is the normal one now: after one slice the table
+  reads but no sound is playable yet.
+* **The menu is the SDK's boot wizard**, opened by holding buttons 2 and 3 and
+  launching with 4 — there is no in-game gesture and nothing opens on power-up. For
+  the game's own settings to appear in it, they have to be declared before `main`,
+  which is what `uvm2_game_settings()` is for.
 
 ---
 

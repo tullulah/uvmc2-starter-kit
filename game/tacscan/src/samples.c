@@ -29,8 +29,14 @@ extern int  v_samplePlaying(int voice);
 #include "ts_jack.h"
 extern volatile int32_t uvm2_setting_audio;
 static int to_jack(void) { return uvm2_setting_audio == 0 && ts_jack_ready(); }
+/* PER SOUND, because the bundle is still coming in while the game plays: a sound whose bytes
+ * have not arrived yet goes out of the console's path for now instead of being silent. The
+ * order in the bundle is samples.json's, so what the attract mode reaches first is also what
+ * lands first. */
+static int jack_has(int idx) { return to_jack() && ts_jack_avail(idx); }
 #else
 static int to_jack(void) { return 0; }
+static int jack_has(int idx) { (void)idx; return 0; }
 #define ts_jack_play(v, i, l) ((void)0)
 #define ts_jack_stop(v)       ((void)0)
 #define ts_jack_playing(v)    0
@@ -40,18 +46,19 @@ void voice_init(int num) { (void)num; }
 
 void sample_start(int channel, int samplenum, int loop)
 {
-    if (to_jack()) ts_jack_play(channel, samplenum, loop);
-    else           v_playSample(samplenum, channel, loop);
+    if (jack_has(samplenum)) ts_jack_play(channel, samplenum, loop);
+    else                     v_playSample(samplenum, channel, loop);
 }
 
 void sample_set_freq(int channel, int freq)     { (void)channel; (void)freq; }
 void sample_set_volume(int channel, int volume) { (void)channel; (void)volume; }
 void sample_adjust(int channel, int mode)       { (void)channel; (void)mode; }
 
-/* BOTH PATHS ARE STOPPED, not just the current one. The setting can change between the
- * start of a sound and its stop — that is exactly what the menu does to a looping voice — and
- * a stop that only reached the path in favour at that instant would leave the tunnel humming
- * on the other one with nothing able to silence it. */
+/* BOTH PATHS ARE STOPPED, not just the one in favour, and this is NECESSARY rather than
+ * defensive. While the bundle is still arriving a sound is routed to the console because its
+ * bytes are not in yet; by the time the game stops that channel they may be, so `jack_has`
+ * now answers yes and a stop that trusted it would leave the console's voice running — the
+ * tunnel humming with nothing able to silence it. Stopping both costs one call. */
 void sample_stop(int channel) { v_stopSample(channel); ts_jack_stop(channel); }
 void sample_end(int channel)  { v_stopSample(channel); ts_jack_stop(channel); }
 

@@ -100,10 +100,21 @@ int main(int argc, char **argv)
     printf("%s: %u bytes\n", bundle, s_len);
 
     if (!ts_jack_begin()) { printf("ts_jack_begin failed\n"); return 1; }
-    int passes = 0;
+
+    /* THE PARTIAL CASE, which is now the normal one: the bundle arrives while the game runs,
+     * so a sound is playable only once ITS OWN bytes are in. One slice, then ask. */
+    ts_jack_load_step();
+    printf("after 1 slice: ready=%d (the table)  percent=%d\n",
+           ts_jack_ready(), ts_jack_load_percent());
+    printf("  sound 0 (first in the bundle) available: %s\n", ts_jack_avail(0) ? "yes" : "not yet");
+    printf("  sound 21 (last in the bundle) available: %s   <- must be 'not yet'\n",
+           ts_jack_avail(21) ? "yes" : "not yet");
+
+    int passes = 1;
     while (!ts_jack_load_step()) passes++;
     printf("loaded in %d slices, ready=%d, percent=%d\n",
            passes, ts_jack_ready(), ts_jack_load_percent());
+    printf("  sound 21 available now: %s\n", ts_jack_avail(21) ? "yes" : "NO");
     if (!ts_jack_ready()) return 1;
 
     /* A scene with the shapes that matter: the continuous bed, a one-shot over it, several
