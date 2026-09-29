@@ -232,10 +232,18 @@ problem, not a snippet:
   so the first seconds sound like a game rather than like silence. Measured: 322
   frames (~8 s at 40 Hz) for the last sound, 45 (~1.1 s) for the ship's roar — which
   is first in `samples.json`, so what the attract mode reaches first is what lands
-  first. **Those two numbers were measured over the bit-banged SPI, at ~300 KB/s**;
-  the driver now uses the SPI0 peripheral at 12.5 MHz and they have not been taken
-  again. They are the honest worst case, not the current behaviour. It runs **only
-  if the player chose the jack**, which is decidable because the
+  first. **THOSE TWO NUMBERS CAME FROM THE HOST, NOT FROM A CONSOLE**, and this text
+  claimed otherwise: `make jack-preview` runs the mixer against a fake card that
+  answers instantly, so they were a floor nobody could reach, not a "before".
+
+  MEASURED ON THE CONSOLE (2026-09-29, TSJACK.LOG, SPI0 at 12.5 MHz): the 2.64 MB
+  take **13.5 s** over 516 passes, one per frame, err 0. Inside its 6 ms window the
+  loader gets 698 KB/s; across the whole load it averages 195 KB/s, because 6 ms of
+  a 25 ms frame is a 24% duty cycle. **The card stopped being the bottleneck** — the
+  budget is. And 698 against the 1307 KB/s the same driver gives on raw blocks is
+  the cost of FatFs (two sectors and a copy per 1024-byte chunk) plus writing into
+  PSRAM through the uncached window: a 47% tax, and the place to look next. It runs
+  **only if the player chose the jack**, which is decidable because the
   menu is the boot wizard and has already closed by then.
 * **`make jack-preview`** builds the real mixer for the desktop against the real
   bundle and writes `build/jack_preview.wav`. A mixer whose headroom and looping are
