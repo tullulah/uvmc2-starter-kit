@@ -151,12 +151,19 @@ volatile unsigned int ts_us_cpu, ts_us_vec, ts_us_wr, ts_us_n;
  * headroom so a heavy scene does not make the refresh breathe.
  *
  * The pacer is against the CLOCK, not against the list's cycle count (uvm2_core1.c). */
+#ifdef UVM2_PICO_RUNTIME
 void uvm2_set_refresh(unsigned hz);
+#endif
 
 int main(void)
 {
     v_init();
+#ifdef UVM2_PICO_RUNTIME
+    /* The pacer is the CARTRIDGE's. In the simulator the browser paces the frames and
+     * there is no such call to make — asking for it there is a link error, which is how
+     * `make sim` was failing. */
     uvm2_set_refresh(40);
+#endif
 
     /* The settings were declared and loaded by uvm2_game_settings(), which the runtime
      * called before this — see the note there. */

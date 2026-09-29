@@ -54,12 +54,16 @@ AAE_SRCS = \
   $(AAE_SRC)/rand.c \
   $(AAE_SRC)/acommon.c
 
-# ts_audio.c IS CARTRIDGE-ONLY (it is not in WASM_SRCS): it resolves AAE's sound
-# index to an entry of the sample bundle read off the SD card, and in the
-# simulator the JS side does that with the .wav files instead.
-# ts_jack.c is CARTRIDGE-ONLY in effect but built everywhere: its whole body is behind
-# UVM2_PICO_RUNTIME and the #else gives stubs, so the host and WASM links do not need to know
-# whether this game has a jack.
+# ts_audio.c and ts_jack.c ARE CARTRIDGE-ONLY IN EFFECT BUT BUILT EVERYWHERE: both bodies
+# are behind UVM2_PICO_RUNTIME and both #else branches give stubs, so the host and WASM links
+# do not need to know whether this game reads a bundle or has a jack.
+#
+# ts_audio.c WAS LEFT OUT OF WASM_SRCS AND `make sim` DID NOT LINK: main.c calls
+# ts_audio_init() unconditionally, so leaving the file out does not remove the symbol, it
+# removes the definition. A file whose #else is a stub belongs in EVERY list — that is what
+# the stub is for. (In the simulator the sounds are still resolved by the JS side, which
+# decodes the .wav files in samples/; the stub is what makes that true instead of a link
+# error.)
 LOCAL_SRCS = src/main.c src/libc_stub.c src/aae_stubs.c src/aae_machine.c src/samples.c \
              src/ts_audio.c src/ts_jack.c
 
@@ -75,7 +79,8 @@ EMSDK_PY     := $(firstword $(wildcard $(EMSDK)/python/*/bin))
 # python, not the compiler.
 EMSDK_EMCC   := $(EMSDK)/upstream/emscripten
 EMCC_PATH    := $(if $(EMSDK_PY),$(EMSDK_PY):,)$(EMSDK_EMCC):$(PATH)
-WASM_SRCS    = src/main.c src/aae_stubs.c src/aae_machine.c src/samples.c
+WASM_SRCS    = src/main.c src/aae_stubs.c src/aae_machine.c src/samples.c \
+               src/ts_audio.c src/ts_jack.c
 WASM_CFLAGS  = -std=gnu11 -O2 -DMZ80_IDLE_SKIP -D'CCNT0(x)=do{}while(0)' \
                -include src/aae_compat.h -Isrc -I$(AAE_SRC) -I$(VPY_C_INC) -I$(PITREX_INC)
 WASM_LDFLAGS = -sASYNCIFY -sASYNCIFY_STACK_SIZE=65536 \
