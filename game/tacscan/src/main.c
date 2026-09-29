@@ -64,12 +64,22 @@ extern volatile int32_t uvm2_setting_audio;   /* 0 = jack, 1 = the console's chi
  * It also means uvm2_setting_audio is already right when the first sound plays, instead of
  * being whatever the default was until main got round to loading the file.
  *
- * No UVM2_SETTING_MENU: the menu is not opened from inside the game, so a switch for
- * "menu on power-up" would be a line that does nothing. The SDK's own rule — a setting that
- * means nothing in this game is not shown. */
+ * AUDIO AND NOTHING ELSE, and the other three are each excluded for a reason. The SDK's own
+ * rule is that a setting which means nothing in this game is not shown, and a line that
+ * saves a number nobody honours is worse than no line:
+ *
+ *   MENU    nothing reads it. The menu is the boot wizard and is not opened from in here.
+ *   ROTATE  Tac/Scan's screen is vertical. There is nothing to rotate.
+ *   HZ      IT WOULD LET THE PLAYER MAKE THE GAME RUN FAST. Nothing in the SDK honours
+ *           uvm2_setting_hz — it is the game that calls uvm2_set_refresh — and this game
+ *           pins 40, which is the board's own rate (15468480/3/0x1f788 = 40.00 Hz) and
+ *           therefore its SPEED: the logic advances on that interrupt, one step per frame.
+ *           Free-running at 42.8 fps it played 7% fast. It was declared for one build and
+ *           the console wrote `hz 50` into TACSCAN.CFG, where it changed nothing — which is
+ *           exactly how a lying setting looks from outside. */
 void uvm2_game_settings(void)
 {
-    uvm2_config_game("TACSCAN", UVM2_SETTING_AUDIO | UVM2_SETTING_HZ);
+    uvm2_config_game("TACSCAN", UVM2_SETTING_AUDIO);
     uvm2_config_load();
 }
 
