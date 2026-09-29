@@ -198,6 +198,7 @@ int main(void)
 #ifdef UVM2_PICO_RUNTIME
             ts_jack_update();     /* mix a frame's worth into the jack */
             ts_jack_load_step();  /* and bring in one more slice of the bundle */
+            ts_jack_log();        /* and, once it is done, leave the numbers on the card */
 #endif
             TS_ADD(ts_us_wr, w);
         }

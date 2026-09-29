@@ -23,6 +23,9 @@ int  ts_jack_begin(void);
  *
  * Safe to keep calling after that; it returns 1 and does nothing. */
 int  ts_jack_load_step(void);
+/* Writes TSJACK.LOG to the card once, when the load finishes. The UVM2 has no SWD, so this
+ * is how the counters get off the board. Cheap and idempotent: a no-op every other frame. */
+void ts_jack_log(void);
 
 /* 0..100. Not for a progress bar — nothing waits for this — but the number is the answer to
  * "is the card actually feeding us?", which over SWD is the difference between a slow card

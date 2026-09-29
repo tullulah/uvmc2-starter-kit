@@ -72,6 +72,8 @@ extern int uvm2_psram_ready;
 #endif
 
 static uvm2_sd_file  s_file;
+static uint32_t      s_t_begin;    /* TS_NOW() when the load opened the file */
+static int           s_log_pending; /* the load just finished: ts_jack_log has a line to write */
 static uint32_t      s_got;        /* bytes written into PSRAM so far */
 static uint32_t      s_size;       /* the file's size, 0 until it is opened */
 static int           s_loading;
@@ -93,6 +95,8 @@ uint32_t ts_jack_bytes;          /* what the load actually read */
  * frame of the load starting. ts_jack_us_max is the worst pass: if it is anywhere near the
  * 25 ms frame, the deadline is too generous whatever the average says. */
 uint32_t ts_jack_kbps;           /* measured, KB/s */
+uint32_t ts_jack_wall_us;        /* begin -> last byte, WALL CLOCK: what the player waits */
+uint32_t ts_jack_passes;         /* load_step calls it took */
 uint32_t ts_jack_us;             /* the last pass */
 uint32_t ts_jack_us_max;         /* the worst pass */
 
@@ -139,6 +143,7 @@ int ts_jack_begin(void)
     s_size   = s_file.len;
     s_got    = 0;
     s_loading = 1;
+    s_t_begin = TS_NOW();
     return 1;
 }
 
@@ -175,6 +180,8 @@ int ts_jack_load_step(void)
             uvm2_sd_close(&s_file);
             s_loading = 0;
             ts_jack_bytes = s_got;
+            ts_jack_wall_us = TS_NOW() - s_t_begin;
+            s_log_pending = 1;
             if (s_got < s_size) ts_jack_err = TS_JACK_E_BADFILE;  /* the card stopped short */
             break;
         }
@@ -188,7 +195,51 @@ int ts_jack_load_step(void)
          * overflowing: got is at most a few tens of KB. */
         if (us) ts_jack_kbps = (got * 1000u) / us;
     }
+    ts_jack_passes++;
     return s_loading ? 0 : 1;
+}
+
+/* ── WHAT THE LOAD COST, LEFT ON THE CARD ──────────────────────────────────────
+ *
+ * THE UVM2 HAS NO SWD. On the other cartridge these counters are read over the probe; here
+ * there is no probe, and the alternatives were both bad: a number on screen is UI the player
+ * did not ask for, and "it sounded faster" is not a measurement. So the game writes the line
+ * itself and the card carries it back.
+ *
+ * WALL CLOCK IS THE HONEST FIGURE, not kbps. The loader is budgeted in TIME (TS_LOAD_US of
+ * every frame), so a faster card does not shorten the pass — it moves more bytes inside the
+ * same 6 ms. kbps says what the transport gives; wall_ms says what the player waits, and only
+ * the second one is the thing anybody notices. Both are here because they answer different
+ * questions and quoting one for the other is how the SD got misread twice already.
+ *
+ * Called from the game loop, never from the mixer: the write mounts the volume and that is
+ * not something to do while the loader has the file open. */
+void ts_jack_log(void)
+{
+    if (!s_log_pending) return;
+    s_log_pending = 0;
+
+    static char line[256];
+    unsigned    n = 0;
+    /* No printf here: libc_stub.c has no formatting, and pulling one in for eight numbers
+     * would put a few KB of code into an image that lives in SRAM. */
+    static const char *const label[] = {
+        "bytes ", "wall_ms ", "passes ", "kbps ", "us_max ", "sd_baud ", "err "
+    };
+    const uint32_t value[] = {
+        ts_jack_bytes, ts_jack_wall_us / 1000u, ts_jack_passes,
+        ts_jack_kbps, ts_jack_us_max, uvm2_sd_diag.baud, ts_jack_err
+    };
+    for (unsigned i = 0; i < sizeof value / sizeof value[0]; i++) {
+        for (const char *c = label[i]; *c && n < sizeof line - 16; c++) line[n++] = *c;
+        uint32_t v = value[i];
+        char     d[12];
+        unsigned k = 0;
+        do { d[k++] = (char)('0' + v % 10u); v /= 10u; } while (v);
+        while (k) line[n++] = d[--k];
+        line[n++] = '\n';
+    }
+    uvm2_sd_write("TSJACK.LOG", (const unsigned char *)line, n);
 }
 
 int ts_jack_load_percent(void)
