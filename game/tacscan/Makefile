@@ -57,7 +57,11 @@ AAE_SRCS = \
 # ts_audio.c IS CARTRIDGE-ONLY (it is not in WASM_SRCS): it resolves AAE's sound
 # index to an entry of the sample bundle read off the SD card, and in the
 # simulator the JS side does that with the .wav files instead.
-LOCAL_SRCS = src/main.c src/libc_stub.c src/aae_stubs.c src/aae_machine.c src/samples.c src/ts_audio.c
+# ts_jack.c is CARTRIDGE-ONLY in effect but built everywhere: its whole body is behind
+# UVM2_PICO_RUNTIME and the #else gives stubs, so the host and WASM links do not need to know
+# whether this game has a jack.
+LOCAL_SRCS = src/main.c src/libc_stub.c src/aae_stubs.c src/aae_machine.c src/samples.c \
+             src/ts_audio.c src/ts_jack.c
 
 # aae_tacscan_rp2350: the cartridge recipe lives in uvm2.mk (rp2350-cart), the same for all
 
@@ -170,7 +174,25 @@ host-prof: | build
 # checkout has to build without it.
 #   make snd
 #   make snd SND_ARGS="--preview build/snd"    to HEAR it first
+#
+# BOTH BUNDLES, because the game has two audio paths and the menu switches between them at
+# run time: shipping only one means the AUDIO setting silences the game on one of its two
+# positions. They share their gains (wav_to_pcm imports MIX and apply_gain from wav_to_vsmp),
+# so the balance between sounds cannot drift apart between them.
+#
+#   TACSCAN.VSM   242 KB   4-bit at 12 kHz, for the console's PSG
+#   TACSCAN.PCM  2.64 MB   16-bit at 32 kHz, for the cartridge's jack (loaded into PSRAM)
 snd:
 	python3 tools/wav_to_vsmp.py $(SND_ARGS)
+	python3 tools/wav_to_pcm.py
+
+# The jack mixer, run on the desktop against the real bundle, written out as a .wav so the
+# headroom and the looping can be judged by ear before flashing a card. See tools/jack_probe.c.
+jack-preview: | build
+	cc -O2 -w -DUVM2_PICO_RUNTIME -include tools/jack_probe.h \
+	   -I$(UVM2_SDK) -Isrc -o build/jack_probe tools/jack_probe.c src/ts_jack.c
+	./build/jack_probe build/tacscan.pcm build/jack_preview.wav
+
+.PHONY: jack-preview
 
 .PHONY: aae_tacscan_rp2350 sim clean snd

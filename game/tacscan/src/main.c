@@ -30,12 +30,96 @@ extern void aae_load_tacscan_roms(void);
 /* RP2350 SDK shim (sdk_rp2350.c). */
 extern void v_init(void);
 extern void v_WaitRecal(void);
-#include "aae_romload.h"   /* aae_rom_last_error + el aviso en screen */
+#include "aae_romload.h"   /* aae_rom_last_error + the on-screen notice */
 extern unsigned char v_readButtons(void);
 extern void v_readJoystick1Analog(void);
 /* ts_audio.c: read the sample bundle off the card into PSRAM. Here and not on the
  * first sound, because that read would land in the middle of a frame. */
 extern void ts_audio_init(void);
+
+#ifdef UVM2_PICO_RUNTIME
+/* ── WHERE THE SOUND COMES OUT, AND WHO DECIDES ────────────────────────────
+ *
+ * Two complete paths for the same 22 sounds:
+ *
+ *   console   the PSG's 4-bit volume register used as a DAC, at 12 kHz, written in the
+ *             gaps of the draw list (uvm2_smp + TACSCAN.VSM, 242 KB)
+ *   jack      the cartridge's PT8211 at 16 bits and 32 kHz, off the Vectrex entirely
+ *             (ts_jack + TACSCAN.PCM, 2.64 MB in PSRAM)
+ *
+ * The player chooses, on the AUDIO line of the menu. The SDK stores that setting and
+ * deliberately does not act on it: routing a game's sound is the game's business, and this
+ * is the game. samples.c is where the choice is actually read, per sound. */
+#include "ts_jack.h"
+#include "uvm2_config.h"
+#include "uvm2_text.h"
+#include "uvm2_smp.h"
+extern volatile int32_t uvm2_setting_audio;   /* 0 = jack, 1 = the console's chip */
+extern volatile int32_t uvm2_setting_menu;    /* 1 = open the menu on power-up */
+extern volatile uint8_t uvm2_cached_buttons;  /* core 1 refreshes it; RAW, active low */
+
+/* THE JACK BUNDLE IS 2.64 MB AND THE CARD IS BIT-BANGED SPI, so it cannot come in inside
+ * one frame — and it must not be read in the middle of one either. It is loaded here, with
+ * a line on screen, in slices of 32 KB per pass. The frame rate sags while it does and that
+ * costs nothing: there is nothing on screen to be smooth.
+ *
+ * ONLY IF THE PLAYER ASKED FOR THE JACK. Spending the wait on a bundle that is not going to
+ * be used would be a tax on everyone who prefers the console's sound, so this also runs
+ * AFTER the menu closes, when the choice has just changed to the jack and the bundle is not
+ * in yet. */
+static void ts_load_jack_audio(void)
+{
+    if (uvm2_setting_audio != 0 || ts_jack_ready()) return;
+    if (!ts_jack_begin()) return;        /* no jack on this board, or no PSRAM */
+    for (;;) {
+        char line[24];
+        int  p = 0, pc = ts_jack_load_percent();
+        for (const char *t = "LOADING AUDIO "; *t; t++) line[p++] = *t;
+        if (pc >= 100) line[p++] = (char)('0' + pc / 100);
+        if (pc >= 10)  line[p++] = (char)('0' + (pc / 10) % 10);
+        line[p++] = (char)('0' + pc % 10);
+        line[p++] = '%';
+        line[p] = 0;
+
+        v_WaitRecal();
+        aae_text(line, 0, 200);
+        if (ts_jack_load_step()) break;
+    }
+}
+
+/* THE MENU, HELD RATHER THAN TAPPED. All four buttons are in play during a game (fire,
+ * grab, coin, start), so the menu needs a gesture the game itself never makes: buttons 2
+ * and 3 together, held. The same pair the SDK's boot combo uses, so it is one thing to
+ * remember rather than two.
+ *
+ * HELD FOR THREE QUARTERS OF A SECOND, because 2 and 3 are grab and coin: pressing both for
+ * one frame is something a player could plausibly do, and losing the game to a menu would be
+ * worse than the menu being slightly deliberate to open. */
+#define TS_MENU_HOLD 30      /* frames at 40 Hz */
+
+static void ts_open_menu(void)
+{
+    /* Nothing must be left sounding on the path we may be about to leave: a looping voice
+     * (the tunnel, the ship's roar) would otherwise keep going on the old one for ever. */
+    uvm2_smp_stop(UVM2_SMP_ALL);
+    ts_jack_stop(-1);
+
+    uvm2_config_wizard();        /* draws, adjusts, and button 4 saves to TACSCAN.CFG */
+    ts_load_jack_audio();        /* the choice may have just become the jack */
+}
+
+static void ts_menu_poll(void)
+{
+    static int held;
+    /* Active low: 0 = pressed. Buttons 2 and 3 are bits 1 and 2. */
+    const uint8_t b = (uint8_t)~uvm2_cached_buttons;
+    if ((b & 0x06u) == 0x06u) held++;
+    else                      held = 0;
+    if (held < TS_MENU_HOLD) return;
+    held = 0;
+    ts_open_menu();
+}
+#endif
 
 /* ── WHERE THE BUILDER'S TIME GOES, MEASURED ON THE CONSOLE ─────────────────
  *
@@ -92,6 +176,24 @@ int main(void)
     v_init();
     uvm2_set_refresh(40);
 
+#ifdef UVM2_PICO_RUNTIME
+    /* WHICH OF ITS OWN SETTINGS THIS GAME HAS. Beam calibration belongs to the console and
+     * is shared; these are the game's, and they go in config/TACSCAN.CFG layered on top.
+     * Without declaring them the wizard shows only the console's fields and nothing here is
+     * remembered between power-ups.
+     *
+     *   AUDIO   jack or the console's chip — the whole point of the menu
+     *   HZ      Tac/Scan is a 40 Hz board, but the refresh cap is still the player's
+     *   MENU    whether this menu opens on power-up
+     *
+     * No ROTATE: Tac/Scan's screen is vertical, so a horizontal/vertical switch would be a
+     * line that does nothing. */
+    uvm2_config_game("TACSCAN", UVM2_SETTING_AUDIO | UVM2_SETTING_HZ | UVM2_SETTING_MENU);
+    /* The runtime already loaded the console's file before main; this layers the game's on
+     * top of it, which is what makes the AUDIO choice survive a power cycle. */
+    uvm2_config_load();
+#endif
+
     ts_audio_init();
     aae_load_tacscan_roms();   /* build GI[0]/GI[1] + copy ROMs (must precede init) */
     /* With no romset, do NOT emulate over zeros: that draws nothing, and a black
@@ -102,12 +204,26 @@ int main(void)
     init_cpu_config();         /* num_cpus + cyclecount from driver[gamenum]        */
     init_segag80();            /* init Z80 context, port handlers, vector RAM        */
 
+#ifdef UVM2_PICO_RUNTIME
+    /* AFTER the romset, so a missing ROM is reported in a second rather than after the
+     * audio bundle has finished coming off the card. */
+    ts_load_jack_audio();
+    if (uvm2_setting_menu) ts_open_menu();
+#endif
+
     for (;;) {
         {
             TS_MARK(w);
             v_WaitRecal();        /* seals the list, hands it over, opens the next */
             v_readButtons();
             v_readJoystick1Analog();
+#ifdef UVM2_PICO_RUNTIME
+            /* The mixer BEFORE the menu poll: the poll can block for the length of a whole
+             * menu session, and the ring has 64 ms. Refilling first means the jack is as far
+             * ahead as it can be when that happens. */
+            ts_jack_update();
+            ts_menu_poll();
+#endif
             TS_ADD(ts_us_wr, w);
         }
         {

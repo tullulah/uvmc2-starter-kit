@@ -107,7 +107,10 @@ Only what `game/tacscan` needs is here (~52 files). Other AAE games need more.
 | `src/aae_machine.c` | 137 | **The `driver[]` row, `getport()` and the ROM load.** The heart of an AAE port. |
 | `src/aae_stubs.c` | 53 | No-ops for the AAE subsystems this game never enters. |
 | `src/tacscan_romtable.h` | 49 | Generated: the romset name and the `aae_rom_op` table. |
-| `src/samples.c`, `src/ts_audio.c` | 85 | AAE's sample interface → the SDK's, and the `.vsm` bundle load. |
+| `src/samples.c`, `src/ts_audio.c` | 120 | AAE's sample interface → the SDK's, the `.vsm` bundle load, and the fork that sends each sound to the console or to the jack. |
+| `src/ts_jack.c/.h` | 220 | The 16-bit jack path: the KSFX bundle in PSRAM and a 10-voice mixer. The header says why it exists; the `.c` says why ten. |
+| `tools/wav_to_pcm.py` | 150 | `samples/*.wav` → `build/tacscan.pcm`, 16-bit at 32 kHz. Shares its gains with the `.vsm` generator. |
+| `tools/jack_probe.c/.h` | 150 | Runs the real mixer on a desktop and writes a `.wav`: `make jack-preview`. |
 | `src/libc_stub.c`, `include/*.h` | 200 | A freestanding libc subset. **Dropped on the `.um2` path** (newlib wins); the headers stay. |
 | `tools/host_test.c`, `mz80_prof.c` | 200 | The desktop harness and the Z80 opcode profile. |
 | `tools/wav_to_vsmp.py`, `audio2vsmp.py` | 350 | `samples/*.wav` → `build/tacscan.vsm`. |

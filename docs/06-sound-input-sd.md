@@ -179,6 +179,60 @@ right are elsewhere:
   system clock the SDK measures against the Vectrex's E at boot. If a jack game
   sounds consistently sharp or flat, that measurement is the first suspect.
 
+### The worked example: Tac/Scan's two paths
+
+`game/tacscan/` plays the same 22 sounds either way, and the player chooses on the
+`AUDIO` line of the menu. It is worth reading because it is the whole shape of the
+problem, not a snippet:
+
+| | console | jack |
+|---|---|---|
+| bundle | `TACSCAN.VSM`, 242 KB | `TACSCAN.PCM`, 2.64 MB |
+| format | 4-bit, 12 kHz | **16-bit, 32 kHz** |
+| how it reaches the ear | the PSG's volume register, written in the gaps of the draw list | a PT8211, off the Vectrex entirely |
+| where it lives | SRAM | PSRAM, loaded at startup |
+| code | `uvm2_smp.*` (SDK) | `src/ts_jack.c` (the game) |
+
+* **The container is shared, and that is the point.** Both games that drive the jack
+  use one:
+
+  ```
+  "KSFX" | u16 n | u16 - | n x (u32 offset, u32 samples, u32 hz, u16 format, u16 -) | data
+  ```
+
+  `format` is the extension point: **0 is 16-bit linear, 1 is IMA ADPCM at four
+  bits**. Tac/Scan ships format 0, because not quantising is the whole reason for
+  using the jack; ADPCM is there for when 2.64 MB of load is worth trading for a
+  quarter of the size. A second container would have meant two readers and two
+  generators to keep in step for nothing.
+* **A format the reader cannot decode is refused, not played.** ADPCM nibbles read as
+  16-bit samples are full-scale noise, and this comes out of a line output into
+  somebody's amplifier. Silence is the right answer to a bundle you do not
+  understand.
+* **The gains live in one place.** `tools/wav_to_pcm.py` imports `MIX` and
+  `apply_gain` from `tools/wav_to_vsmp.py`, so the balance between sounds — the ship's
+  roar ducked to a half so the lasers carry over it — is one decision with two
+  outputs. Copy the numbers into both and the game will sound different depending on
+  which output you chose, which is not what the setting is for.
+* **Ten voices, and the number comes from the game.** AAE addresses voices by fixed
+  id and Tac/Scan's go up to 9. The console path was written with four once, and the
+  result on hardware was that the shots sounded and the engines did not: everything
+  from voice 4 up was dropped by a range check, silently.
+* **The headroom is one shift, and the content chose it.** The generator prints each
+  sound's median `|sample|`: they run 3573..8736 of 32767, i.e. 11% to 27%. Three
+  voices at their medians sum to about half of full scale with a shift of one, so
+  nothing clamps in normal play and a single sound still comes out at half scale.
+  Measured on the host with `make jack-preview`: four voices at once clamp **6 samples
+  out of 24000**. Peaks clamping is the right trade — a clamp is a flattened
+  transient, a wrap is a crack.
+* **The load is 2.64 MB off a bit-banged card, so it is not free.** It happens in
+  32 KB slices with a percentage on screen, and **only if the player asked for the
+  jack** — spending the wait on a bundle nobody is going to hear would tax everyone
+  who prefers the console. Switching to the jack in the menu runs the load then.
+* **`make jack-preview`** builds the real mixer for the desktop against the real
+  bundle and writes `build/jack_preview.wav`. A mixer whose headroom and looping are
+  only ever exercised by flashing a card is one nobody has actually checked.
+
 ---
 
 ## Input

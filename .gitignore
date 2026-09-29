@@ -9,3 +9,7 @@ target/
 third_party/pico-sdk/
 
 .DS_Store
+
+# Python bytecode from the host-side tools
+__pycache__/
+*.pyc
