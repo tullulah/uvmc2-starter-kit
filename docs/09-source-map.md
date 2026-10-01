@@ -26,7 +26,7 @@ Sizes are rounded; they tell you whether a file is a glance or a session.
 | `uvm2_input.c/.h` | 240 | Buttons, joysticks (digital and SAR analog), PSG access. |
 | `uvm2_audio.c/.h` | 230 | `.vmus` / `.vsfx` sequencers, and the PSG mixer shadow. |
 | `uvm2_smp.c/.h` | 580+230 | Digitised samples through the volume DAC. **The `.h` carries the whole model**; read it, not the `.c`. |
-| `uvm2_sd.c/.h` | 490+105 | Bit-banged SPI to the card, and the API over FatFs (FAT12/16/32 + exFAT): whole files, slices, an open file for streaming, writes. |
+| `uvm2_sd.c/.h` | 690+110 | The card over the SPI0 peripheral at 12.5 MHz (`-DUVM2_SD_BITBANG` brings back the old bit-banged transport), and the API over FatFs (FAT12/16/32 + exFAT): whole files, slices, an open file for streaming, writes. |
 | `uvm2_romzip.c` | 100 | Reads `roms/<game>.zip` off the card and publishes the `'RMZ1'` descriptor. |
 | `uvm2_psram.c/.h` | 1150+220 | Brings up the 8 MB on CS1, plus three diagnostic probes. |
 | `uvm2_config.c/.h` | 370+145 | Per-**console** beam calibration, on the SD card. The `.h` explains every field. |
