@@ -62,7 +62,7 @@ Legend: **[ ]** not started · **[x]** done · **[~]** partly done · **(asked)*
 - [x] **(idea) A particle system with a stroke budget.** *`vpyfx` (2026-10-01).* Sparks, debris, exhaust as
   short strokes along their velocity (motion blur for free). A hard cap per frame
   and LOW priority, so particles are the first thing shed, never the scenery.
-- [ ] **(idea) Camera shake and hit-stop.** Screen-space offset on impact, decaying;
+- [x] **(idea) Camera shake and hit-stop.** *`vpycam` (2026-10-01).* Screen-space offset on impact, decaying;
   a few frames' freeze on a big hit. Both nearly free.
 - [x] **(idea) Trails.** *`vpyfx_line`: one a frame behind a moving object, each fading.* Keep the last N positions of a fast object and draw them
   dimmer and dimmer. A vector display's natural afterimage.
@@ -76,7 +76,7 @@ Legend: **[ ]** not started · **[x]** done · **[~]** partly done · **(asked)*
   reaching a target.
 - [ ] **(idea) Morphing.** Blend between two shapes with the same vertex count —
   a vector logo turning into a ship. Cost: the larger shape's edges.
-- [ ] **(idea) Tweening and easing.** A small library of fixed-point curves
+- [x] **(idea) Tweening and easing.** *`vpyease` (2026-10-01).* A small library of fixed-point curves
   (ease in/out, overshoot, bounce) for UI, cameras and animation.
 
 ## 3D rendering
@@ -103,7 +103,8 @@ Legend: **[ ]** not started · **[x]** done · **[~]** partly done · **(asked)*
   the ordering trap from the occluder.
 - [ ] **(idea) Steering and pathfinding.** Seek, flee, arrive, separation (flocks
   of vector birds); grid A* for enemies in mazes.
-- [ ] **(idea) A camera system.** Follow with look-ahead, dead zones, shake,
+- [x] **(idea) A camera system.** *`vpycam`: follow with dead zone and lead, shake, hit-stop;
+  scripted paths not done.* Follow with look-ahead, dead zones, shake,
   scripted paths — hakaba's camera, made general.
 - [ ] **(idea) Deterministic replay.** Record inputs and a seed, play back
   frame-exact (kuroishi has one); the base for attract modes and ghost runs.

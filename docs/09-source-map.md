@@ -76,6 +76,9 @@ Sizes are rounded; they tell you whether a file is a glance or a session.
 | `vpy-c/tools/fx_check.c` | 130 | The effects against their header; exit status = failures. |
 | `vpy-c/tools/phys_check.c` | 140 | The physics against formulas and behaviours; exit status = failures. |
 | `vpy-c/tools/dent_check.c` | 110 | Mesh copies and dents: undented draws like a plain box, dented shows the fold, recycling uses no pool. |
+| `vpy-c/include/vpycam.h`, `vpy-c/vpycam.c` | 60+90 | A camera that follows (dead zone, lead, no creep), shakes and holds time on a hit. |
+| `vpy-c/include/vpyease.h`, `vpy-c/vpyease.c` | 50+90 | Easing curves and tweens in Q14, exact at both ends. |
+| `vpy-c/tools/motion_check.c` | 110 | The camera and the curves against what they promise. |
 | `vpy-c/tools/aspect_check.c` | 70 | Host witness for the lens: a world square must project square (w/h 1.000), and each half angle must follow its own axis's clip. |
 | `pitrex-sim/include/vectrex/vectrexInterface.h` | 75 | **The backend-neutral contract.** 20 declarations; the most important file in the kit per byte. |
 | `pitrex-sim/sdk_host.c` | — | The host/WASM implementation of that contract. |

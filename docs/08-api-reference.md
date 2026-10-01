@@ -266,6 +266,27 @@ bodies; what shoves the neighbours of an explosion is `vpyp_blast`, and
 `vpyfx_ring` is the shockwave you see. `vpy-c/tools/fx_check.c` holds
 it to its header. Uses vpy3d (`vpy3d_mesh_edge` reads a mesh's edges).
 
+### Camera and easing — `vpycam.h`, `vpyease.h`
+
+```c
+void vpycam_reset(int32_t fx,int32_t fy,int32_t fz);
+void vpycam_follow_config(int32_t dead_x,int32_t dead_y,int32_t dead_z,int lead_frames,int smooth);
+void vpycam_follow(int32_t tx,int32_t ty,int32_t tz, int32_t vx,int32_t vy,int32_t vz);
+void vpycam_shake(int32_t amount,int frames);   void vpycam_hitstop(int frames);
+int  vpycam_stopped(void);                      /* skip the simulation while 1 */
+void vpycam_step(void);                         /* once a frame */
+int  vpycam_look_at(int32_t ox,int32_t oy,int32_t oz);   /* vpy3d camera, shaken */
+
+int32_t vpy_ease_out_cubic(int32_t t_q14);      /* and in/out quad, cubic, smoothstep, back, bounce, elastic */
+int32_t vpy_tween(int32_t from,int32_t to,int frame,int frames,vpy_ease_fn curve);
+```
+
+The focus follows a target with a dead zone, a lead by its velocity and
+smoothing that snaps the last few units rather than creeping (a camera that
+moves a unit a frame re-zeroes the beam somewhere new every frame). Every
+easing curve is exactly 0 at the start and exactly 1 at the end.
+`vpy-c/tools/motion_check.c` holds both to that.
+
 ### Compiled assets
 
 ```c

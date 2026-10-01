@@ -34,6 +34,7 @@
 #include <vpy3d.h>
 #include <vpyphys.h>
 #include <vpyfx.h>
+#include <vpycam.h>
 #ifndef VPY_DUAL_CORE
 #include <uvm2_bus.h>   /* the .um2: the SDK is in the image */
 #endif
@@ -183,6 +184,7 @@ static void setup_world(void)
     add_ball(200, 1900, 300);
     s_ndropped = 0;
     s_aim_x = 0; s_aim_z = -200;
+    vpycam_reset(0, 200, 0);
     vpyfx_reset();
     vpyfx_seed(1);
     vpyfx_set_gravity(0, -GRAVITY, 0);
@@ -260,6 +262,8 @@ static void shatter(int id, int32_t hx, int32_t hy, int32_t hz)
     vpyfx_shatter(crate_mesh(id), &at, vx, vy, vz, hx, hy, hz, 2200, 3000, 150, 120);
     vpyp_remove(id);
     blast(hx, hy, hz);
+    vpycam_shake(60, 18);      /* the camera feels it */
+    vpycam_hitstop(3);         /* and time holds for three frames, so the hit lands */
     for (int i = 0; i < s_ndropped; i++)
         if (s_dropped[i] == id) {
             for (int j = i + 1; j < s_ndropped; j++) s_dropped[j - 1] = s_dropped[j];
@@ -430,13 +434,16 @@ static void loop(void)
     if (pressed(3)) drop(0);
     if (pressed(4)) setup_world();
 
-    /* physics: one step per frame */
-    vpyp_step();
-    sparks_from_contacts();
-    vpyfx_step();
+    /* physics: one step per frame, except while a hit-stop holds time */
+    vpycam_step();
+    if (!vpycam_stopped()) {
+        vpyp_step();
+        sparks_from_contacts();
+        vpyfx_step();
+    }
 
     /* draw, near to far */
-    vpy3d_look_at(EYE_X, EYE_Y, EYE_Z, 0, 200, 0, 0, 1, 0);
+    vpycam_look_at(EYE_X, EYE_Y - 200, EYE_Z);       /* from the eye to (0, 200, 0), shaken */
     vpy3d_occl_reset();
     int order[VPYP_MAX_BODIES], n = 0;
     for (int id = 0; id < VPYP_MAX_BODIES; id++) {
