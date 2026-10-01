@@ -129,7 +129,8 @@ Legend: **[ ]** not started · **[x]** done · **[~]** partly done · **(asked)*
   fps, `ramps_clamped`, over any game.
 - [ ] **(idea) Fail the BIOS build if it does not define the SDK's weak hooks.**
   A renamed hook silently disconnected the menu's music and SD (2026-10-01).
-- [ ] **(idea) Mend the six host tools that do not link** and build them all from
+- [x] **(idea) Mend the six host tools that do not link** *— `tools/uvm2_host_stubs.c` and
+  `tools/build_host_tools.sh` (2026-10-01); all eight build.* and build them all from
   one target, so they cannot rot unnoticed again.
 - [ ] **(idea) Per-console screen shape in the calibration wizard.** Measure the
   visible window and the small aspect error per console, store them in

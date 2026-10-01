@@ -155,6 +155,11 @@ cc -O2 -DUVM2_HOST -DUVM2_BENCH_NO_CORE1 -DUVM2_SUBUNITS -DUVM2_CMD_CAPACITY=655
    <kit>/sdk/vectrex-draw/cabi/target/release/libvectrex_draw_cabi.a
 ```
 
+Build them all with `sdk/uvm2-sdk/tools/build_host_tools.sh`: it links each one
+with the shared host stubs and with `-DUVM2_HZ=0` — without that, the 50 Hz lock
+pads every list to 30000 cycles and a tool measuring a frame measures the
+padding (937 cycles per operation instead of 48).
+
 | tool | answers |
 |---|---|
 | `uvm2_list_count.c` | How many commands / bus words / bus cycles a **real dumped frame** needs, broken down by VIA register, plus the geometry that explains it (stroke lengths, how many are chained, jump distances, brightness changes, the worst run with no re-centring). |
