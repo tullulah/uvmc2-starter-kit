@@ -26,15 +26,16 @@ Legend: **[ ]** not started · **[x]** done · **[~]** partly done · **(asked)*
   restitution, friction, in Q16, stepped at a fixed rate (semi-implicit Euler).
   Resting contact and "sleep" so a pile of boxes stops costing CPU. 2D first,
   then 3D on vpy3d transforms. Costs no strokes; CPU only.
-- [~] **(asked) Collision detection.** *Spheres and turning boxes done in `vpyphys` (boxes by
-  the six face axes); edge-against-edge and convex hulls beyond boxes still to do.* Sphere and AABB first; convex-vs-convex
+- [x] **(asked) Collision detection.** *Spheres, turning boxes (all fifteen axes, edge against
+  edge included) and checked convex hulls in `vpyphys` (2026-10-01).* Sphere and AABB first; convex-vs-convex
   (SAT) next, reusing the convex hulls the occluder already builds. A uniform grid
   as the broad phase. Contact points and normals out, so the physics and the
   effects below can use them.
-- [x] **(idea) Ray casts.** *`vpyp_raycast`; vs mesh still to do.* Ray vs sphere, box and mesh, returning the hit point,
+- [x] **(idea) Ray casts.** *`vpyp_raycast` for bodies (hulls too); `vpy3d_ray_mesh` for any mesh,
+  dented or morphed as it is now (2026-10-01).* Ray vs sphere, box and mesh, returning the hit point,
   normal and face. Shots, line of sight, the lightgun (`examples/lightgun_test`).
-- [~] **(idea) Constraints: ropes, chains, hinges.** *Ropes and chains in `vpyrope`
-  (2026-10-01); hinges between physics bodies not done.* Verlet points joined by
+- [x] **(idea) Constraints: ropes, chains, hinges.** *Ropes and chains in `vpyrope`; ball
+  joints and hinges between physics bodies in `vpyphys` (2026-10-01). No angle limits or motors.* Verlet points joined by
   distance constraints. A rope is a polyline, which is the cheapest thing a vector
   display can draw: a 12-link chain is 12 chained strokes.
 
@@ -46,8 +47,9 @@ Legend: **[ ]** not started · **[x]** done · **[~]** partly done · **(asked)*
   Per-instance vertex offsets over a shared mesh, so a hundred identical crates do
   not need a hundred meshes. Costs no strokes: the same edges, displaced. Needs the
   face normals rebuilt after a dent so hidden-line removal stays right.
-- [~] **(asked) Shots that mark what they hit.** *A dent where a shot lands, in
-  `physics_demo`; scorch rings and holes not done.* Ray cast + deformation: a dent, a
+- [x] **(asked) Shots that mark what they hit.** *A dent and a mark (`vpy3d_marks`: a scorch
+  ring or a crack, kept in the object's space) where a shot lands (2026-10-01). Holes are not
+  planned: the occluder has no polygons with holes, so what is behind could not show through.* Ray cast + deformation: a dent, a
   scorch ring drawn on the face, or a hole (the face's outline split around it).
 - [x] **(idea) Shatter.** *`vpyfx_shatter` (2026-10-01): every edge a spinning stick.* At a strong enough impact the mesh breaks into pieces:
   each piece a small convex mesh, or simply each EDGE becomes a spinning stick with
@@ -85,7 +87,8 @@ Legend: **[ ]** not started · **[x]** done · **[~]** partly done · **(asked)*
 - [x] **(idea) Projected shadows.** *`vpy3d_shadow` (2026-10-01).* Project a solid's convex hull onto the floor
   plane from a light direction and draw it as a dim outline. The hull code exists
   (the occluder); a shadow is one more polygon per object.
-- [~] **(idea) Level of detail.** *`vpy3d_screen_size` to pick by; the game keeps the meshes.* Two or three versions of a mesh, picked by
+- [x] **(idea) Level of detail.** *`vpy3d_lod_pick` / `vpy3d_draw_lod` over the game's meshes,
+  by `vpy3d_screen_size` (2026-10-01).* Two or three versions of a mesh, picked by
   on-screen size, so distant objects cost fewer strokes.
 - [x] **(idea) Depth cueing in the SDK.** *`vpy3d_fog`.* Brightness falling with distance, one
   call, instead of every game computing its own fog (hakaba does it by hand).
@@ -123,8 +126,9 @@ Legend: **[ ]** not started · **[x]** done · **[~]** partly done · **(asked)*
 - [x] **(idea) A beam simulator.** *`uvm2-sdk/tools/beam_sim.py` (2026-10-01).* Decode a command list cycle by cycle and render
   what is lit to SVG, flagging anomalies (ramps with the clamp on, lit with no
   ramp). Written ad hoc to find the 2026-10-01 asterisk; worth making permanent.
-- [~] **(idea) An official command-list dump over RTT** *— the reader is `list_from_rtt.py`; the
-  dump itself is still the debug cartridge BIOS's `CMD_DUMP`, not the UVMC2's.*, the same on both
+- [x] **(idea) An official command-list dump** *— to the SD card, no probe: `uvm2_dump_list` in
+  the `.um2`, and the debug cartridge's BIOS calls it on buttons 3+4; `list_from_sd.py` reads it
+  (2026-10-01). Not yet tried on hardware. The RTT dump stays.*, the same on both
   cartridges, with a script that reassembles the passes for the simulator.
 - [ ] **(idea) A built-in diagnostics HUD** on a button combo: dropped, strokes,
   fps, `ramps_clamped`, over any game.
@@ -143,7 +147,7 @@ Legend: **[ ]** not started · **[x]** done · **[~]** partly done · **(asked)*
 ## A suggested order
 
 1. ~~**Collision + rigid bodies with gravity**~~ — done (`vpyphys`), rotation included.
-   What is left of it: edge-against-edge for boxes, convex hulls beyond boxes.
+   Edge against edge, convex hulls and joints followed.
 2. ~~**Particles with a stroke budget**, then **shatter**~~ — done (`vpyfx`).
-3. ~~**Deformation on impact**~~ — done; **shots that mark** done as dents.
+3. ~~**Deformation on impact**~~ — done; **shots that mark** done as dents and marks.
 4. **The entity layer**, once there are enough systems to tie together.

@@ -106,6 +106,20 @@ void vpy3d_mesh_dent(vpy_mesh *m,int32_t px,int32_t py,int32_t pz,
 void vpy3d_world_to_model(const vpy_xf *place,int32_t wx,int32_t wy,int32_t wz,
                           int32_t *mx,int32_t *my,int32_t *mz);
 
+/* where a ray meets a mesh, and marks where shots landed */
+int  vpy3d_ray_mesh(const vpy_mesh *m,const vpy_xf *place,int32_t ox,int32_t oy,int32_t oz,
+                    int32_t dx,int32_t dy,int32_t dz,int32_t max_dist,vpy3d_hit *out);  /* face or -1 */
+void vpy3d_marks_clear(vpy3d_marks *mk);                       /* one vpy3d_marks per object */
+void vpy3d_marks_add(vpy3d_marks *mk,const vpy_xf *place,int32_t x,int32_t y,int32_t z,
+                     int32_t nx,int32_t ny,int32_t nz);        /* a vpyp_hit / vpy3d_hit as it is */
+int  vpy3d_marks_draw(const vpy3d_marks *mk,const vpy_xf *place,int32_t radius,int br,
+                      int style);                              /* VPY3D_MARK_RING / _CRACK */
+
+/* level of detail: the version a ball of `radius` round place->t still deserves */
+int  vpy3d_lod_pick(const vpy_xf *place,int32_t radius,const int32_t *min_size,int n);  /* -1: none */
+int  vpy3d_draw_lod(const vpy_mesh *const *meshes,const int32_t *min_size,int n,
+                    const vpy_xf *place,int32_t radius,int br);
+
 /* morphing: two poses of one model */
 int  vpy3d_mesh_blend(vpy_mesh *dst,const vpy_mesh *a,const vpy_mesh *b,int32_t t_q14);
 
@@ -144,6 +158,16 @@ again, so a flat face shows the fold — but a face only bends where it has
 vertices: give a dentable box a vertex in the middle of each face (it still
 draws like a plain box). Dents are drawing only; a physics body keeps its
 shape. `vpy-c/tools/dent_check.c` holds it to that.
+
+**Marks.** A dent alone cannot be seen on something a few millimetres across on
+the tube (measured on the console, 2026-10-01); a small bright ring on the face
+that was hit can. `vpy3d_marks_add` stores the hit in the object's own space, so
+the mark turns with it; `vpy3d_marks_draw` draws the rings (or cracks) through
+the occluder, skipping faces turned away — call it after the object and before
+adding the object as an occluder. A full set gives up its oldest mark.
+`vpy3d_ray_mesh` finds the face a ray meets on any mesh, dented or morphed as it
+is now; `vpyp_raycast` stays the one for bodies. `vpy-c/tools/mesh_check.c`
+checks both and the LOD pick.
 
 **Occlusion between solids is the caller's job, done with a silhouette.** Hidden
 lines are removed within a mesh, never between two: with no depth buffer, a
@@ -210,6 +234,12 @@ void vpyp_set_gravity(int32_t gx,int32_t gy,int32_t gz);     /* units/s²: 9800 
 void vpyp_set_floor(int on,int32_t y,int restitution_q8,int friction_q8);
 int  vpyp_add_sphere(int32_t x,int32_t y,int32_t z,int32_t r,int32_t mass);     /* mass 0 = static */
 int  vpyp_add_box(int32_t x,int32_t y,int32_t z,int32_t hx,int32_t hy,int32_t hz,int32_t mass);
+int  vpyp_hull_shape(const int16_t *xyz,int nverts,const uint8_t *faces);   /* checked; or -1 */
+int  vpyp_add_hull(int32_t x,int32_t y,int32_t z,int shape,int32_t mass);
+int  vpyp_hull_error(void);                                  /* why a shape was refused */
+int  vpyp_ball_joint(int a,int b,int32_t px,int32_t py,int32_t pz);         /* b -1: the world */
+int  vpyp_hinge(int a,int b,int32_t px,int32_t py,int32_t pz,int32_t ax,int32_t ay,int32_t az);
+void vpyp_joint_remove(int joint);
 void vpyp_set_material(int id,int restitution_q8,int friction_q8);
 void vpyp_set_mask(int id,uint8_t mask);                     /* who collides with whom */
 void vpyp_set_velocity(int id,int32_t vx,int32_t vy,int32_t vz);
@@ -228,16 +258,29 @@ int  vpyp_blast(int32_t cx,int32_t cy,int32_t cz,int32_t radius,int32_t speed,ui
 const vpyp_stats_t *vpyp_stats(void);                        /* awake, contacts, refused */
 ```
 
-Spheres and boxes, a floor, restitution, friction, sleeping bodies (a pile at
+Spheres, boxes and convex hulls, a floor, restitution, friction, sleeping bodies (a pile at
 rest costs almost nothing) and a contact list with the impulse of each hit —
 what a dent, a spark or an impact sound reads. **Bodies turn:** a hit
 off-centre spins them, boxes tip over and tumble, balls roll;
 `vpyp_rotation()` gives the turn as a Q14 matrix to draw with. Inertia is
-a scalar, exact for spheres and cubes; box against box tests the six face axes
-but not edge against edge. The solver is sequential impulses with warm
-starting and speculative contacts, so a stack holds and a fast body does not
-tunnel through a thin wall. ~19 KB of code and ~80 KB of RAM, almost all of it
-the contact table. `vpy-c/tools/phys_check.c` checks it against formulas (free fall,
+a scalar, exact for spheres and cubes. Box against box tests all fifteen
+separating axes, edge against edge included. The solver is sequential impulses
+with warm starting and speculative contacts, so a stack holds and a fast body
+does not tunnel through a thin wall. ~42 KB of code and ~99 KB of RAM, most of it
+the contact table.
+
+**Hulls** are any convex solid: register the shape once (corners round the
+body's centre, faces as a count and that many corner indices — a mesh's own
+faces will do) and add as many bodies of it as you like. The shape is checked —
+flat faces, convex, the centre inside, the tables big enough — and refused with
+a reason rather than simulated wrong. Keep them small: a hull pair tests every
+face of both and every pair of edge directions.
+
+**Joints.** A ball joint holds two bodies (or a body and the world) together at
+a point; a hinge also keeps an axis lined up — a door, a wheel, a flail. Two
+joined bodies do not collide; removing a body removes its joints. No limits and
+no motor. A joint is held by impulses and then by putting the positions back,
+and `vpyp_stats()->joint_stretch` says how far apart the worst one is. `vpy-c/tools/phys_check.c` checks it against formulas (free fall,
 braking distance, momentum) and behaviours; its numbers are in the header.
 
 A full table is a limit the game handles: compare `vpyp_stats()->bodies` with
@@ -508,7 +551,17 @@ uint32_t uvm2_list_commands(void);
 uint32_t uvm2_frame_count(void);
 uint32_t uvm2_frame_bus_cycles(void);
 void     uvm2_emit_raw(uint32_t reg,uint32_t data,uint32_t gap);   /* one raw command */
+
+/* the last closed frame's list, to the SD card (uvm2_dump.c) — core 0 only */
+int  uvm2_dump_list(const char *path);                       /* 1 if written */
+int  uvm2_dump_list_on_buttons(const char *path,uint8_t mask);   /* once per press */
+extern uvm2_dump_diag_t uvm2_dump_diag;                      /* ok, failed, error, commands */
 ```
+
+The dump is the list the console was given, for `tools/list_from_sd.py` and
+`beam_sim.py` (see `07-measuring.md`). The screen goes dark while the card
+writes, so it is a capture, not a per-frame call; a refusal is counted with its
+reason (`UVM2_DUMP_CORE1`, `_EMPTY`, `_SD`, and then `uvm2_sd_error`).
 
 Runtime knobs (all `volatile`, all with a long comment at their definition):
 `uvm2_zero_jump`, `uvm2_zero_every`, `uvm2_zero_offset`, `uvm2_pacer_cycles`,

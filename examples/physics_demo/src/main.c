@@ -17,7 +17,7 @@
  *   button 1   drop a ball over the aim
  *   button 2   shoot: a crate it hits is dented, and shatters on the third
  *              hit; a ball it hits is knocked away
- *   button 3   drop a crate over the aim
+ *   button 3   drop a piece over the aim: a crate, a pyramid, a wedge, in turn
  *   button 4   start again
  *
  * THE READOUT: BOD bodies alive, AWK the ones awake (sleeping ones cost almost
@@ -29,6 +29,15 @@
  * Bodies TURN: a shot off-centre spins a crate, crates tip over edges and
  * tumble, balls roll — each ball carries a ring that turns with it, because a
  * sphere's outline alone cannot show it rolling.
+ *
+ * A DOOR on a hinge stands at the left of the pit (vpyp_hinge, to the world,
+ * about the vertical): shoot it or throw things at it and it swings, without
+ * sagging off its hinge. JNT on the readout is the hinge's stretch in mm — how
+ * far apart the two points it holds together are — and should stay near 0.
+ * PYRAMIDS AND WEDGES are convex hulls (vpyp_hull_shape), registered from the
+ * same corners and faces their meshes are built from: they land on a face,
+ * stack, and slide off each other's slopes. Shots mark the door and the pieces
+ * too, but only crates dent and break.
  */
 #include <vpy.h>
 #include <vpy3d.h>
@@ -60,10 +69,9 @@
 /* A crate a shot hits only rocks: with the full kick it flew off, the next two
  * shots missed it, and the dent went with it out of sight (on the console). */
 #define CRATE_NUDGE     6     /* the shot's kick on a crate, divided by this */
-/* THE MARK a shot leaves: a small bright ring on the face it hit, kept in the
- * crate's own space so it turns with it. On something this small on screen it
- * reads where a dent's fold does not. */
-#define MARKS           3
+/* THE MARK a shot leaves: a small bright ring on the face it hit (vpy3d_marks),
+ * kept in the crate's own space so it turns with it. On something this small on
+ * screen it reads where a dent's fold does not. */
 #define MARK_R         40
 #define BR_MARK       127
 #define SHOTS_TO_BREAK  3
@@ -74,6 +82,15 @@
  * inside it. */
 #define DEMO_BODIES    48
 
+/* the door: its half sizes, and the hinge at its left edge, a little clear of
+ * the left wall's inner face so turning does not grind it into the wall */
+#define DOOR_HX       300
+#define DOOR_HY       280
+#define DOOR_HZ        15
+#define DOOR_Z      (-300)
+#define DOOR_GAP       20
+#define DOOR_LIFT      30     /* its bottom edge this far off the floor: no floor friction */
+
 #define BR_SOLID      110
 #define BR_FLOOR       40
 #define BR_AIM         90
@@ -82,16 +99,16 @@
 #define EYE_Y        2300
 #define EYE_Z       -4200
 
-static vpy_mesh s_crate, s_ball, s_wall_x, s_wall_z;
+static vpy_mesh s_crate, s_ball, s_wall_x, s_wall_z, s_door, s_pyr, s_wedge;
+static int s_pyr_shape, s_wedge_shape, s_next_piece;
 /* Each body slot's own crate mesh, made the first time that crate is dented
  * and reset in place when the slot holds a new crate — so recycling slots never
  * eats the vpy3d pools (sized in the Makefile for one per slot). */
 static vpy_mesh s_own[VPYP_MAX_BODIES];
 static uint8_t  s_dented[VPYP_MAX_BODIES], s_hits[VPYP_MAX_BODIES];
-static struct { int16_t p[3], n[3]; } s_mark[VPYP_MAX_BODIES][MARKS];   /* model space; n Q14 */
-static uint8_t  s_nmarks[VPYP_MAX_BODIES];
+static vpy3d_marks s_marks[VPYP_MAX_BODIES];
 
-enum { K_CRATE, K_BALL, K_WALL_X, K_WALL_Z };
+enum { K_CRATE, K_BALL, K_PYR, K_WEDGE, K_DOOR, K_WALL_X, K_WALL_Z };
 static uint8_t s_kind[VPYP_MAX_BODIES];
 static int s_dropped[VPYP_MAX_BODIES], s_ndropped;   /* oldest first */
 
@@ -134,6 +151,41 @@ static void build_box(vpy_mesh *m, int hx, int hy, int hz)
     vpy3d_mesh_end(VPY3D_HARD_45);
 }
 
+/* THE CONVEX PIECES: one list of corners and faces makes both the mesh that is
+ * drawn and the hull that is simulated, so the two cannot disagree. Faces as
+ * vpyp_hull_shape takes them (a count, that many corners, a 0 to end); corners
+ * round the centre of mass, which is where the body turns. A pyramid's centre
+ * of mass is a quarter of its height above the base. */
+static const int16_t PYR_V[5 * 3] = { -150,-75,-150,  150,-75,-150,  150,-75,150,  -150,-75,150,  0,225,0 };
+static const uint8_t PYR_F[] = { 4, 0,1,2,3,  3, 0,1,4,  3, 1,2,4,  3, 2,3,4,  3, 3,0,4,  0 };
+/* a triangular prism lying on its side: the triangle's centroid at the origin */
+static const int16_t WEDGE_V[6 * 3] = { -170,-80,-150,  170,-80,-150,  0,160,-150,
+                                        -170,-80, 150,  170,-80, 150,  0,160, 150 };
+static const uint8_t WEDGE_F[] = { 3, 0,1,2,  3, 3,4,5,  4, 0,1,4,3,  4, 1,2,5,4,  4, 2,0,3,5,  0 };
+
+/* each face wound so it faces OUT, whichever way the list has it: vpy3d hides
+ * back faces by their winding */
+static void build_from_faces(vpy_mesh *m, const int16_t *xyz, int nv, const uint8_t *faces)
+{
+    int v[8];
+    int32_t mean[3] = { 0, 0, 0 };
+    vpy3d_mesh_begin(m);
+    for (int i = 0; i < nv; i++) {
+        v[i] = vpy3d_vertex(xyz[i * 3], xyz[i * 3 + 1], xyz[i * 3 + 2]);
+        for (int k = 0; k < 3; k++) mean[k] += xyz[i * 3 + k];
+    }
+    for (int k = 0; k < 3; k++) mean[k] /= nv;
+    for (const uint8_t *f = faces; *f; f += 1 + *f) {
+        const int16_t *a = &xyz[f[1] * 3], *b = &xyz[f[2] * 3], *c = &xyz[f[3] * 3];
+        const int64_t u[3] = { b[0] - a[0], b[1] - a[1], b[2] - a[2] }, w[3] = { c[0] - a[0], c[1] - a[1], c[2] - a[2] };
+        const int64_t n[3] = { u[1] * w[2] - u[2] * w[1], u[2] * w[0] - u[0] * w[2], u[0] * w[1] - u[1] * w[0] };
+        const int out = n[0] * (a[0] - mean[0]) + n[1] * (a[1] - mean[1]) + n[2] * (a[2] - mean[2]) > 0;
+        if (*f == 3) { if (out) vpy3d_tri(v[f[1]], v[f[2]], v[f[3]]); else vpy3d_tri(v[f[3]], v[f[2]], v[f[1]]); }
+        else         { if (out) vpy3d_quad(v[f[1]], v[f[2]], v[f[3]], v[f[4]]); else vpy3d_quad(v[f[4]], v[f[3]], v[f[2]], v[f[1]]); }
+    }
+    vpy3d_mesh_end(VPY3D_HARD_45);
+}
+
 /* A low sphere: 8 around, 3 rings and two poles. HARD_60 so only its outline
  * is drawn, not the facets — a ball reads as round on the tube. */
 #define SEG   8
@@ -166,7 +218,13 @@ static void build_ball(vpy_mesh *m, int r)
 static int add_crate(int32_t x, int32_t y, int32_t z)
 {
     const int id = vpyp_add_box(x, y, z, CRATE, CRATE, CRATE, 2);
-    if (id >= 0) { s_kind[id] = K_CRATE; vpyp_set_material(id, 40, 150); s_dented[id] = 0; s_hits[id] = 0; s_nmarks[id] = 0; }
+    if (id >= 0) { s_kind[id] = K_CRATE; vpyp_set_material(id, 40, 150); s_dented[id] = 0; s_hits[id] = 0; vpy3d_marks_clear(&s_marks[id]); }
+    return id;
+}
+static int add_piece(int kind, int32_t x, int32_t y, int32_t z)
+{
+    const int id = vpyp_add_hull(x, y, z, kind == K_PYR ? s_pyr_shape : s_wedge_shape, 2);
+    if (id >= 0) { s_kind[id] = (uint8_t)kind; vpyp_set_material(id, 40, 150); vpy3d_marks_clear(&s_marks[id]); }
     return id;
 }
 static int add_ball(int32_t x, int32_t y, int32_t z)
@@ -187,6 +245,16 @@ static void setup_world(void)
     w = vpyp_add_box(0, WALL_H, -PIT - WALL_T, PIT + WALL_T, WALL_H, WALL_T, 0); s_kind[w] = K_WALL_X;
     w = vpyp_add_box(PIT + WALL_T, WALL_H, 0, WALL_T, WALL_H, PIT, 0);           s_kind[w] = K_WALL_Z;
     w = vpyp_add_box(-PIT - WALL_T, WALL_H, 0, WALL_T, WALL_H, PIT, 0);          s_kind[w] = K_WALL_Z;
+    /* the shapes go with every reset, so they are registered after it */
+    s_pyr_shape = vpyp_hull_shape(PYR_V, 5, PYR_F);
+    s_wedge_shape = vpyp_hull_shape(WEDGE_V, 6, WEDGE_F);
+    s_next_piece = 0;
+    /* the door, hinged to the world at its left edge, about the vertical */
+    const int door = vpyp_add_box(-PIT + DOOR_GAP + DOOR_HX, DOOR_LIFT + DOOR_HY, DOOR_Z, DOOR_HX, DOOR_HY, DOOR_HZ, 4);
+    if (door >= 0) {
+        s_kind[door] = K_DOOR; vpyp_set_material(door, 40, 120); vpy3d_marks_clear(&s_marks[door]);
+        vpyp_hinge(door, VPYP_NONE, -PIT + DOOR_GAP, DOOR_LIFT + DOOR_HY, DOOR_Z, 0, 1, 0);
+    }
     /* a pyramid of crates, three, two, one, with a small gap so it settles */
     for (int row = 0; row < 3; row++)
         for (int i = 0; i < 3 - row; i++)
@@ -195,6 +263,9 @@ static void setup_world(void)
     add_ball(-700, 900, -300);
     add_ball(650, 1300, -100);
     add_ball(200, 1900, 300);
+    /* and one of each convex piece, coming down tipped */
+    int p = add_piece(K_PYR, 800, 700, 500);   if (p >= 0) vpyp_set_rotation(p, 1, 0, 1, 500);
+    p = add_piece(K_WEDGE, -600, 1100, 500);   if (p >= 0) vpyp_set_rotation(p, 0, 1, 1, 300);
     s_ndropped = 0;
     s_aim_x = 0; s_aim_z = -200;
     vpycam_reset(0, 200, 0);
@@ -207,7 +278,7 @@ static void setup_world(void)
 
 /* Add, recycling the oldest dropped body first when the table is full — asked
  * BEFORE adding, so vpyphys never has to refuse (its `refused` stays 0). */
-static void drop(int ball)
+static void drop(int kind)
 {
     int alive = 0;
     for (int id = 0; id < VPYP_MAX_BODIES; id++) alive += vpyp_alive(id);
@@ -216,7 +287,8 @@ static void drop(int ball)
         for (int i = 1; i < s_ndropped; i++) s_dropped[i - 1] = s_dropped[i];
         s_ndropped--;
     }
-    const int id = ball ? add_ball(s_aim_x, DROP_Y, s_aim_z) : add_crate(s_aim_x, DROP_Y, s_aim_z);
+    const int id = kind == K_BALL ? add_ball(s_aim_x, DROP_Y, s_aim_z)
+                 : kind == K_CRATE ? add_crate(s_aim_x, DROP_Y, s_aim_z) : add_piece(kind, s_aim_x, DROP_Y, s_aim_z);
     if (id >= 0) s_dropped[s_ndropped++] = id;
 }
 
@@ -265,56 +337,13 @@ static void dent(int id, int32_t px, int32_t py, int32_t pz,
     vpy3d_mesh_dent(&s_own[id], mx, my, mz, ux, uy, uz, depth, DENT_R);
 }
 
-/* Remember where a shot hit crate `id`, in the crate's own space. */
+/* Remember where a shot hit body `id`. */
 static void add_mark(int id, int32_t px, int32_t py, int32_t pz, int32_t nx, int32_t ny, int32_t nz)
 {
-    if (s_nmarks[id] >= MARKS) return;
     int32_t x, y, z; vpyp_position(id, &x, &y, &z);
     vpy_xf at = vpy3d_translate(x, y, z);
     vpyp_rotation(id, at.m);
-    int32_t m[3], n[3];
-    vpy3d_world_to_model(&at, px, py, pz, &m[0], &m[1], &m[2]);
-    vpy_xf turn = at; turn.t[0] = turn.t[1] = turn.t[2] = 0;
-    vpy3d_world_to_model(&turn, nx, ny, nz, &n[0], &n[1], &n[2]);
-    for (int k = 0; k < 3; k++) { s_mark[id][s_nmarks[id]].p[k] = (int16_t)m[k]; s_mark[id][s_nmarks[id]].n[k] = (int16_t)n[k]; }
-    s_nmarks[id]++;
-}
-
-/* The marks on crate `id`, placed `at`: a ring round each, in the face's plane,
- * a hair out from it, only on faces turned to the camera. */
-#define MARK_SEG 6
-static void draw_marks(int id, const vpy_xf *at)
-{
-    int32_t eye[3]; vpy3d_eye(eye);
-    for (int k = 0; k < s_nmarks[id]; k++) {
-        int32_t c[3], n[3];
-        for (int r = 0; r < 3; r++) {
-            const int64_t mp = (int64_t)at->m[r*3] * s_mark[id][k].p[0] + (int64_t)at->m[r*3+1] * s_mark[id][k].p[1] + (int64_t)at->m[r*3+2] * s_mark[id][k].p[2];
-            const int64_t mn = (int64_t)at->m[r*3] * s_mark[id][k].n[0] + (int64_t)at->m[r*3+1] * s_mark[id][k].n[1] + (int64_t)at->m[r*3+2] * s_mark[id][k].n[2];
-            c[r] = at->t[r] + (int32_t)(mp >> 14);
-            n[r] = (int32_t)(mn >> 14);
-        }
-        const int64_t facing = (int64_t)n[0] * (eye[0] - c[0]) + (int64_t)n[1] * (eye[1] - c[1]) + (int64_t)n[2] * (eye[2] - c[2]);
-        if (facing <= 0) continue;
-        /* two directions across the face: from the axis least along n */
-        const int32_t a0 = n[0] < 0 ? -n[0] : n[0], a1 = n[1] < 0 ? -n[1] : n[1], a2 = n[2] < 0 ? -n[2] : n[2];
-        const int ax = a0 < a1 ? (a0 < a2 ? 0 : 2) : (a1 < a2 ? 1 : 2);
-        int64_t e[3] = { 0, 0, 0 }; e[ax] = 16384;
-        int64_t u[3] = { n[1] * e[2] - n[2] * e[1], n[2] * e[0] - n[0] * e[2], n[0] * e[1] - n[1] * e[0] };
-        const int64_t ul = isqrt64(u[0] * u[0] + u[1] * u[1] + u[2] * u[2]);
-        for (int r = 0; r < 3; r++) u[r] = ul ? u[r] * 16384 / ul : 0;
-        const int64_t w[3] = { (n[1] * u[2] - n[2] * u[1]) >> 14, (n[2] * u[0] - n[0] * u[2]) >> 14, (n[0] * u[1] - n[1] * u[0]) >> 14 };
-        int32_t prev[3] = { 0, 0, 0 };
-        for (int sgi = 0; sgi <= MARK_SEG; sgi++) {
-            const int a = sgi * VPY_Q14_TURN / MARK_SEG;
-            const int64_t cs = vpy_cos_q14(a), sn = vpy_sin_q14(a);
-            int32_t q[3];
-            for (int r = 0; r < 3; r++)
-                q[r] = c[r] + (int32_t)((n[r] * 3) >> 14) + (int32_t)((((u[r] * cs + w[r] * sn) >> 14) * MARK_R) >> 14);
-            if (sgi) vpy3d_occl_line(prev[0], prev[1], prev[2], q[0], q[1], q[2], BR_MARK);
-            prev[0] = q[0]; prev[1] = q[1]; prev[2] = q[2];
-        }
-    }
+    vpy3d_marks_add(&s_marks[id], &at, px, py, pz, nx, ny, nz);
 }
 
 static void shatter(int id, int32_t hx, int32_t hy, int32_t hz)
@@ -352,14 +381,16 @@ static void shoot(void)
          * of it, dents and all, thrown out from where the shot landed. */
         if (++s_hits[id] >= SHOTS_TO_BREAK) { shatter(id, h.x, h.y, h.z); return; }
         dent(id, h.x, h.y, h.z, dx, dy, dz, SHOT_DENT);
-        add_mark(id, h.x, h.y, h.z, h.nx, h.ny, h.nz);
     }
+    if (id >= 0 && s_kind[id] != K_BALL && s_kind[id] < K_WALL_X) add_mark(id, h.x, h.y, h.z, h.nx, h.ny, h.nz);
     if (id >= 0) {
         /* the kick along the ray, the same speed whatever the ray's length or
          * the body's mass, AT the point it hit: off-centre, it spins the body */
         const int64_t l = isqrt64((int64_t)dx * dx + (int64_t)dy * dy + (int64_t)dz * dz);
-        const int32_t m = s_kind[id] == K_CRATE ? 2 : 1;
-        const int32_t kick = s_kind[id] == K_CRATE ? SHOT_KICK / CRATE_NUDGE : SHOT_KICK;
+        /* a crate or a piece only rocks (see CRATE_NUDGE); the door swings */
+        const int k = s_kind[id];
+        const int32_t m = k == K_DOOR ? 4 : k == K_BALL ? 1 : 2;
+        const int32_t kick = k == K_BALL ? SHOT_KICK : k == K_DOOR ? SHOT_KICK / 4 : SHOT_KICK / CRATE_NUDGE;
         vpyp_apply_impulse_at(id, (int32_t)((int64_t)dx * kick * m / l),
                                   (int32_t)((int64_t)dy * kick * m / l) + kick * m / 4,
                                   (int32_t)((int64_t)dz * kick * m / l),
@@ -425,11 +456,12 @@ static void draw_body(int id)
     int32_t x, y, z; vpyp_position(id, &x, &y, &z);
     vpy_xf at = vpy3d_translate(x, y, z);
     vpyp_rotation(id, at.m);                 /* the turn it really has */
-    const vpy_mesh *m = s_kind[id] == K_BALL ? &s_ball : s_kind[id] == K_CRATE ? crate_mesh(id)
-                      : s_kind[id] == K_WALL_X ? &s_wall_x : &s_wall_z;
-    vpy3d_draw_mesh(m, &at, s_kind[id] >= K_WALL_X ? BR_FLOOR + 20 : BR_SOLID);
-    if (s_kind[id] == K_BALL) draw_ring(&at, BR_SOLID - 30);
-    if (s_kind[id] == K_CRATE) draw_marks(id, &at);
+    const int k = s_kind[id];
+    const vpy_mesh *m = k == K_BALL ? &s_ball : k == K_CRATE ? crate_mesh(id) : k == K_PYR ? &s_pyr
+                      : k == K_WEDGE ? &s_wedge : k == K_DOOR ? &s_door : k == K_WALL_X ? &s_wall_x : &s_wall_z;
+    vpy3d_draw_mesh(m, &at, k >= K_WALL_X ? BR_FLOOR + 20 : BR_SOLID);
+    if (k == K_BALL) draw_ring(&at, BR_SOLID - 30);
+    else if (k < K_WALL_X) vpy3d_marks_draw(&s_marks[id], &at, MARK_R, BR_MARK, VPY3D_MARK_RING);
     /* AFTER drawing it. A ball hides by the octahedron inside it — a little
      * less than the ball, never more. A crate by its eight corners, worked out
      * here because its mesh has face centres too (fourteen vertices, and the
@@ -466,9 +498,9 @@ static void draw_shadows(void)
     const int keep = vpy_get_priority();
     vpy_set_priority(VPY_PRI_LOW);           /* a full frame sheds shadows before solids */
     for (int id = 0; id < VPYP_MAX_BODIES; id++) {
-        if (!vpyp_alive(id) || s_kind[id] >= K_WALL_X) continue;
+        if (!vpyp_alive(id) || s_kind[id] >= K_DOOR) continue;
         int32_t x, y, z; vpyp_position(id, &x, &y, &z);
-        const int32_t half = s_kind[id] == K_CRATE ? CRATE : BALL;
+        const int32_t half = s_kind[id] == K_BALL ? BALL : CRATE;
         if (y < half + 60) continue;                         /* on the floor, or as good as */
         int32_t c[8][3]; int n;
         if (s_kind[id] == K_BALL) {
@@ -477,6 +509,14 @@ static void draw_shadows(void)
                                       { x, y + r, z }, { x, y, z - r }, { x, y, z + r } };
             for (int k = 0; k < 6; k++) { c[k][0] = o[k][0]; c[k][1] = o[k][1]; c[k][2] = o[k][2]; }
             n = 6;
+        } else if (s_kind[id] != K_CRATE) {
+            /* a piece: its own corners, turned */
+            const int16_t *v = s_kind[id] == K_PYR ? PYR_V : WEDGE_V;
+            n = s_kind[id] == K_PYR ? 5 : 6;
+            int32_t m[9]; vpyp_rotation(id, m);
+            for (int k = 0; k < n; k++)
+                for (int r = 0; r < 3; r++)
+                    c[k][r] = (r == 0 ? x : r == 1 ? y : z) + (int32_t)(((int64_t)m[r*3] * v[k*3] + (int64_t)m[r*3+1] * v[k*3+1] + (int64_t)m[r*3+2] * v[k*3+2]) >> 14);
         } else {
             int32_t m[9]; vpyp_rotation(id, m);
             for (int k = 0; k < 8; k++) {
@@ -521,6 +561,9 @@ static void setup(void)
     build_ball(&s_ball, BALL);
     build_box(&s_wall_x, PIT + WALL_T, WALL_H, WALL_T);
     build_box(&s_wall_z, WALL_T, WALL_H, PIT);
+    build_box(&s_door, DOOR_HX, DOOR_HY, DOOR_HZ);
+    build_from_faces(&s_pyr, PYR_V, 5, PYR_F);
+    build_from_faces(&s_wedge, WEDGE_V, 6, WEDGE_F);
     vpy3d_set_mesh_occlusion(1);
     setup_world();
 }
@@ -535,9 +578,13 @@ static void loop(void)
     if (s_aim_x < -PIT + 100) s_aim_x = -PIT + 100;
     if (s_aim_z >  PIT - 100) s_aim_z =  PIT - 100;
     if (s_aim_z < -PIT + 100) s_aim_z = -PIT + 100;
-    if (pressed(1)) drop(1);
+    if (pressed(1)) drop(K_BALL);
     if (pressed(2)) shoot();
-    if (pressed(3)) drop(0);
+    if (pressed(3)) {
+        static const uint8_t PIECES[3] = { K_CRATE, K_PYR, K_WEDGE };
+        drop(PIECES[s_next_piece]);
+        s_next_piece = (s_next_piece + 1) % 3;
+    }
     if (pressed(4)) setup_world();
 
     /* physics: one step per frame, except while a hit-stop holds time */
@@ -573,6 +620,7 @@ static void loop(void)
     vpy_print_text(   2, 108, "CON"); vpy_print_number( 24, 108, (long)ps->contacts);
     vpy_print_text(  62, 108, "FX");  vpy_print_number( 78, 108, (long)vpyfx_stats()->alive);
     vpy_print_text(-118, -112, "STK"); vpy_print_number(-96, -112, (long)ds->strokes);
+    vpy_print_text(  62, -112, "JNT"); vpy_print_number( 84, -112, (long)ps->joint_stretch);
     vpy_print_text( -40, -112, "DROP"); vpy_print_number(-12, -112, (long)(ds->dropped
 #ifndef VPY_DUAL_CORE
                                                                          + uvm2_stats.dropped

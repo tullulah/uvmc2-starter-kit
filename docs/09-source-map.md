@@ -37,7 +37,8 @@ Sizes are rounded; they tell you whether a file is a glance or a session.
 | `uvm2_bus_stream.h` | 46 | The C face of the Rust bus crate. No implementation here. |
 | `memmap_psram.ld` | 350 | Opt-in: link the whole image into PSRAM. Its comments are the best account of what does and does not belong in external memory. |
 | `tools/*.c`, `tools/*.py` | ~1500 | Host-side measurement tools. Not part of any build. See [07](07-measuring.md). |
-| `tools/list_from_rtt.py`, `tools/beam_sim.py` | 70+150 | The command list the console ran, from an RTT dump, and what it does to an ideal beam. See [07](07-measuring.md). |
+| `uvm2_dump.c` | 140 | The last closed frame's command list to the SD card, with a header that proves it whole. Core 0 only; under the debug cart's BIOS the BIOS calls it. |
+| `tools/list_from_rtt.py`, `tools/list_from_sd.py`, `tools/beam_sim.py` | 70+70+150 | The command list the console ran, from an RTT dump or from the card, and what it does to an ideal beam. See [07](07-measuring.md). |
 | `tools/uvm2_sd_test.sh` | 110 | `uvm2_sd.c` against real FAT16 / FAT32 / exFAT (MBR and GPT) images, with `fsck -n` after. macOS. |
 | `tools/stats.py`, `probe.sh`, `load.sh`, `release.sh` | 380 | **SWD tools** for a console on the bench: read `uvm2_stats` without halting, the PC of a hang, load an image without the SD card. Which ones halt the core is in [07](07-measuring.md). |
 
@@ -71,11 +72,12 @@ Sizes are rounded; they tell you whether a file is a glance or a session.
 |---|---|---|
 | `vpy-c/include/vpy.h` | 160 | The game library's API, with the asset formats described per group. |
 | `vpy-c/vpy.c` | 1700 | Its implementation: shapes, `.vec`/`.vanim` readers, text, math, the level and enemy runtimes, and the **stroke buffer** every drawing call goes through (flushed once per frame). |
-| `vpy-c/include/vpy3d.h`, `vpy-c/vpy3d.c` | 315+915 | A small 3D layer in C (meshes, camera, projection, a per-axis window), drawing through the stroke buffer, plus the **screen-space occluder** that lets one solid hide another. The header's occlusion block is the manual. |
-| `vpy-c/include/vpyphys.h`, `vpy-c/vpyphys.c` | 165+695 | **Rigid bodies, gravity, collisions, ray casts.** Integer, deterministic. The header says what is measured and what is not there yet (rotation). |
+| `vpy-c/include/vpy3d.h`, `vpy-c/vpy3d.c` | 450+1390 | A small 3D layer in C (meshes, camera, projection, a per-axis window), drawing through the stroke buffer, plus the **screen-space occluder** that lets one solid hide another, dents, marks where shots landed, a ray against a mesh, and level of detail. The header's occlusion block is the manual. |
+| `vpy-c/include/vpyphys.h`, `vpy-c/vpyphys.c` | 285+2000 | **Rigid bodies, gravity, collisions, ray casts, joints.** Spheres, boxes and convex hulls; ball joints and hinges. Integer, deterministic. The header says what is measured. |
 | `vpy-c/include/vpyfx.h`, `vpy-c/vpyfx.c` | 95+325 | **Sparks, bursts and shattering**, one stroke per piece, within a stroke budget at the lowest priority. |
 | `vpy-c/tools/fx_check.c` | 130 | The effects against their header; exit status = failures. |
-| `vpy-c/tools/phys_check.c` | 140 | The physics against formulas and behaviours; exit status = failures. |
+| `vpy-c/tools/phys_check.c` | 400 | The physics against formulas and behaviours — hulls and joints included; exit status = failures. |
+| `vpy-c/tools/mesh_check.c` | 160 | A ray against a mesh (turned, moved, dented), marks, and the LOD pick. |
 | `vpy-c/tools/terrain_check.c` | 90 | The floating horizon: flat land all shows, a ridge hides what is behind it, nothing drawn under what came before. |
 | `vpy-c/tools/shade_check.c` | 70 | Fog, shadows and screen size against geometry. |
 | `vpy-c/tools/dent_check.c` | 110 | Mesh copies and dents: undented draws like a plain box, dented shows the fold, recycling uses no pool. |

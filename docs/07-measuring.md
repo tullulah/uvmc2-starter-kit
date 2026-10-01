@@ -170,6 +170,7 @@ padding (937 cycles per operation instead of 48).
 | `uvm2_smp_test.c` | Sample injection coverage against scene complexity. |
 | `smp_stats.py` | Reads the mixer histograms `-DUVM2_SMP_TELEM=1` produces. |
 | `list_from_rtt.py` | The command list **the console actually ran**, from the debug cartridge BIOS's RTT dump (`CMD_DUMP`, buttons 1+2 held on a frozen frame). Refuses if the passes disagree. |
+| `list_from_sd.py` | The same list from the SD card: `uvm2_dump_list` (or `uvm2_dump_list_on_buttons` once a frame) writes the last closed frame with a header — count, frame, `dropped`, `ramps_clamped`, a hash — and this refuses a file whose magic, length or hash is wrong, and warns when `dropped` is not zero. No probe needed. |
 | `beam_sim.py` | Plays a list against an ideal beam and reports what the **list** gets wrong: ramps started with the zero clamp on (must be 0), lit cycles under the clamp, the frame's length; draws what is lit as an SVG. |
 
 **From the console to an answer, without halting it.** Freeze the frame, hold
@@ -179,6 +180,22 @@ padding (937 cycles per operation instead of 48).
 python3 sdk/uvm2-sdk/tools/list_from_rtt.py rtt.log list.json
 python3 sdk/uvm2-sdk/tools/beam_sim.py list.json lit.svg
 ```
+
+**Or without a probe at all**, from the card. In a `.um2` the game calls
+`uvm2_dump_list_on_buttons("debug/list.bin", mask)` once a frame; under the
+debug cartridge's BIOS the BIOS does it for every game, on buttons 3+4, into
+`DEBUG/LIST.BIN` — a file that must already exist on the card at 40 KB or more
+(`dd if=/dev/zero of=LIST.BIN bs=1k count=40`), because that BIOS overwrites in
+place and cannot grow a file. Then:
+
+```sh
+python3 sdk/uvm2-sdk/tools/list_from_sd.py /Volumes/<card>/DEBUG/LIST.BIN list.json
+python3 sdk/uvm2-sdk/tools/beam_sim.py list.json lit.svg
+```
+
+`uvm2_dump_diag` says whether it ran and, if not, why. Under the BIOS the header's
+`dropped` and `ramps_clamped` are read when the dump runs, which can be a frame
+later than the list.
 
 That is how the 2026-10-01 "asterisk" was found: the BIOS's own list for the
 frame, replayed, drew the first chain of strokes at the centre with the clamp
