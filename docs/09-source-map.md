@@ -141,7 +141,7 @@ Only what `game/tacscan` needs is here (~52 files). Other AAE games need more.
 
 | dir | what it is |
 |---|---|
-| `physics_demo` | Crates and balls under gravity in a pit: drop them, shoot them. Hard knocks and shots dent crates, the third shot shatters one and its blast scatters the rest, every hard contact throws sparks. vpyphys + vpyfx + vpy3d with mesh occlusion and dents. |
+| `physics_demo` | Crates and balls under gravity in a pit: drop them, shoot them. Hard knocks and shots dent crates, the third shot shatters one and its blast scatters the rest, every hard contact throws sparks, and a shot leaves a mark on what it hits. A door on a hinge, and pyramids and wedges as convex hulls (button 3 drops crate, pyramid, wedge in turn). vpyphys + vpyfx + vpy3d with mesh occlusion, dents and marks. |
 | `occlusion_demo` | Three turning meshes, one swinging through the others, with occlusion on and off. |
 | `geometry_card` | A test card to photograph: is a unit the same size in x and y, and where does the glass end. |
 

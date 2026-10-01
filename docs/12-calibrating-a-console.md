@@ -93,6 +93,14 @@ before 2026-09-28 does not have it; rebuild it. Some games also open the wizard
 from their own menu (`uvm2_config_wizard()`), and those show their own settings as
 well.
 
+**On the debug cartridge** the BIOS's own menu opens it: **button 3 — calibration,
+button 4 — start**, written under the list. Its BIOS loads `config/uvm2.cfg` at
+power-on and applies it to the menu and to every game. It can only *overwrite* that
+file, not create it, so the card needs `config/uvm2.cfg` (512 bytes; 511 spaces and
+a newline will do) before the first save — without it the menu says `NOT SAVED`
+and the setting lasts until power-off. Before 2026-10-02 that BIOS never read the
+file at all: every game drew with the compiled-in zero whatever the card said.
+
 If the combination seems to do nothing, read `uvm2_boot_combo` over SWD
 ([07](07-measuring.md)):
 
@@ -226,6 +234,27 @@ To try a value without the wizard, write `zero 7` (or any other) in
 effect live.
 
 ---
+
+## A diagonal or a dot with the brightness up
+
+Two artefacts that showed on every game and in the debug cartridge's menu, on one
+console, once the brightness knob was turned up — and not in Minestorm. Neither is
+a calibration fault; both were the cartridge moving the blanked beam slowly enough
+to be seen. Fixed in the SDK on 2026-10-02; recorded here so the next one is
+recognised.
+
+* **A corner-to-corner diagonal.** The filler that pads each frame to 50 Hz ran
+  with the zero clamp released and `/RAMP` held open by Port B, and with the mux on
+  the Y channel the Y hold followed Port A, so X and Y swept together. Found by
+  dumping the list to the card (`uvm2_dump_list`) and replaying it in `beam_sim.py`,
+  which reports a dark, free-running beam. The filler now keeps the clamp on;
+  `uvm2_filler_clamp = 0` brings the old one back for a comparison over SWD.
+* **A dot that follows the stick.** The digital joystick read probed the comparator
+  with the DAC at ±64. Bisected over SWD by switching parts of the read off; the
+  axes now come from the analog read alone. See `06-sound-input-sd.md`.
+
+A blanked beam is not invisible: what matters is how long it stays. A fast dark
+jump leaves a faint thread; a slow sweep or a parked beam leaves a line or a dot.
 
 ## What the calibration does not reach
 

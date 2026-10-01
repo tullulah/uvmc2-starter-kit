@@ -128,7 +128,8 @@ Legend: **[ ]** not started · **[x]** done · **[~]** partly done · **(asked)*
   ramp). Written ad hoc to find the 2026-10-01 asterisk; worth making permanent.
 - [x] **(idea) An official command-list dump** *— to the SD card, no probe: `uvm2_dump_list` in
   the `.um2`, and the debug cartridge's BIOS calls it on buttons 3+4; `list_from_sd.py` reads it
-  (2026-10-01). Not yet tried on hardware. The RTT dump stays.*, the same on both
+  (2026-10-01). Tried on the debug cartridge 2026-10-02: written, read back, hash right,
+  replayed in beam_sim. The RTT dump stays.*, the same on both
   cartridges, with a script that reassembles the passes for the simulator.
 - [ ] **(idea) A built-in diagnostics HUD** on a button combo: dropped, strokes,
   fps, `ramps_clamped`, over any game.
