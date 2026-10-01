@@ -26,8 +26,8 @@ Legend: **[ ]** not started · **[x]** done · **[~]** partly done · **(asked)*
   restitution, friction, in Q16, stepped at a fixed rate (semi-implicit Euler).
   Resting contact and "sleep" so a pile of boxes stops costing CPU. 2D first,
   then 3D on vpy3d transforms. Costs no strokes; CPU only.
-- [~] **(asked) Collision detection.** *Sphere and AABB done in `vpyphys`; convex-vs-convex
-  (SAT) still to do.* Sphere and AABB first; convex-vs-convex
+- [~] **(asked) Collision detection.** *Spheres and turning boxes done in `vpyphys` (boxes by
+  the six face axes); edge-against-edge and convex hulls beyond boxes still to do.* Sphere and AABB first; convex-vs-convex
   (SAT) next, reusing the convex hulls the occluder already builds. A uniform grid
   as the broad phase. Contact points and normals out, so the physics and the
   effects below can use them.
@@ -46,18 +46,19 @@ Legend: **[ ]** not started · **[x]** done · **[~]** partly done · **(asked)*
   face normals rebuilt after a dent so hidden-line removal stays right.
 - [ ] **(asked) Shots that mark what they hit.** Ray cast + deformation: a dent, a
   scorch ring drawn on the face, or a hole (the face's outline split around it).
-- [ ] **(idea) Shatter.** At a strong enough impact the mesh breaks into pieces:
+- [x] **(idea) Shatter.** *`vpyfx_shatter` (2026-10-01): every edge a spinning stick.* At a strong enough impact the mesh breaks into pieces:
   each piece a small convex mesh, or simply each EDGE becomes a spinning stick with
   its own velocity — the classic vector explosion, and it costs exactly the edges
   the object already had, falling to zero as pieces fade.
 - [ ] **(idea) Soft bodies.** Mass-spring meshes (jelly, flags, cloth, a wobbling
   blob). Same Verlet core as the ropes; the strokes are the springs.
-- [ ] **(idea) Shockwaves.** An expanding ring that fades with radius and pushes
+- [~] **(idea) Shockwaves.** *As game code in `physics_demo` (`blast()`): a push on every
+  body near the blow. Not in the SDK yet, and no visible ring.* An expanding ring that fades with radius and pushes
   bodies it passes. Cost: one ring of N strokes, N fixed.
 
 ## Particles and effects
 
-- [ ] **(idea) A particle system with a stroke budget.** Sparks, debris, exhaust as
+- [x] **(idea) A particle system with a stroke budget.** *`vpyfx` (2026-10-01).* Sparks, debris, exhaust as
   short strokes along their velocity (motion blur for free). A hard cap per frame
   and LOW priority, so particles are the first thing shed, never the scenery.
 - [ ] **(idea) Camera shake and hit-stop.** Screen-space offset on impact, decaying;
@@ -136,7 +137,6 @@ Legend: **[ ]** not started · **[x]** done · **[~]** partly done · **(asked)*
 
 1. ~~**Collision + rigid bodies with gravity**~~ — done (`vpyphys`), rotation included.
    What is left of it: edge-against-edge for boxes, convex hulls beyond boxes.
-2. **Particles with a stroke budget**, then **shatter** — the most visible payoff,
-   and the budget rules get settled once.
+2. ~~**Particles with a stroke budget**, then **shatter**~~ — done (`vpyfx`).
 3. **Deformation on impact** and **shots that mark what they hit**.
 4. **The entity layer**, once there are enough systems to tie together.

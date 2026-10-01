@@ -216,6 +216,35 @@ A full table is a limit the game handles: compare `vpyp_stats()->bodies` with
 `VPYP_MAX_BODIES` (64) before adding, as `examples/physics_demo` does. A refusal
 is counted either way.
 
+### Effects — `vpyfx.h`
+
+Sparks and debris, one stroke per piece. A **spark** is a point drawn as a
+streak along its velocity; a **stick** is a rigid segment that moves and spins.
+`vpyfx_shatter()` turns every edge of a mesh into a stick thrown out from the
+point of the blow — the classic vector explosion, costing exactly the edges the
+object had. Add `$(VPY_C_SDK)/vpyfx.c` to `UVM2_SRCS`.
+
+```c
+void vpyfx_reset(void);  void vpyfx_seed(uint32_t s);
+void vpyfx_set_gravity(int32_t gx,int32_t gy,int32_t gz);     /* units/s² */
+void vpyfx_set_floor(int on,int32_t y,int bounce_q8);
+void vpyfx_set_budget(int strokes_per_frame);                 /* default 160 */
+int  vpyfx_burst(int32_t x,int32_t y,int32_t z, int32_t vx,int32_t vy,int32_t vz,
+                 int count,int32_t speed,int life,int br);
+int  vpyfx_shatter(const vpy_mesh *m,const vpy_xf *place, int32_t vx,int32_t vy,int32_t vz,
+                   int32_t cx,int32_t cy,int32_t cz, int32_t speed,int32_t spin,int life,int br);
+void vpyfx_step(void);
+void vpyfx_draw(int occlude);   void vpyfx_draw2d(void);
+const vpyfx_stats_t *vpyfx_stats(void);                       /* alive, drawn, shed, recycled */
+```
+
+Effects draw at `VPY_PRI_LOW` within their stroke budget, so they are the first
+thing shed when a frame is full — never the scenery — and what is left out is
+counted. Deterministic, with a seeded generator. Pieces pass through solid
+bodies; a game that wants an explosion to shove its neighbours does it with
+impulses (`examples/physics_demo` has a `blast()`). `vpy-c/tools/fx_check.c` holds
+it to its header. Uses vpy3d (`vpy3d_mesh_edge` reads a mesh's edges).
+
 ### Compiled assets
 
 ```c
