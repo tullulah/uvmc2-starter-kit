@@ -48,7 +48,7 @@
 #define DROP_Y       1600
 #define SHOT_KICK   20000     /* mm/s per unit of mass, along the ray */
 #define BLAST_R       700     /* a shattering crate pushes what is this close */
-#define BLAST_KICK   3000     /* mm/s per unit of mass, at the centre of the blast */
+#define BLAST_KICK   3000     /* mm/s, at the centre of the blast */
 #define DENT_IMPULSE 5000     /* a contact harder than this dents a crate */
 #define DENT_PER     2500     /* ...by 1 mm for every this much more */
 #define DENT_MAX       70     /* and never deeper than this (mm) */
@@ -84,8 +84,6 @@ static int s_dropped[VPYP_MAX_BODIES], s_ndropped;   /* oldest first */
 static int32_t s_aim_x, s_aim_z;
 static int s_held[5];
 
-/* the shot's tracer, for a few frames */
-static struct { int32_t x, y, z; int life; } s_tracer;
 /* Effects get this many strokes a frame, at the lowest priority. Chosen with
  * DEMO_BODIES so the worst frame stays inside what one frame holds. */
 #define FX_BUDGET      120
@@ -190,7 +188,6 @@ static void setup_world(void)
     vpyfx_set_gravity(0, -GRAVITY, 0);
     vpyfx_set_floor(1, 0, 90);
     vpyfx_set_budget(FX_BUDGET);
-    s_tracer.life = 0;
 }
 
 /* Add, recycling the oldest dropped body first when the table is full — asked
@@ -221,26 +218,14 @@ static int64_t isqrt64(int64_t n)
     return r;
 }
 
-/* THE BLAST. The pieces of a shattered crate are effects and pass through
- * everything, so what shoves the neighbours is this: every moving body within
- * BLAST_R gets a kick away from the blow, harder the closer it is, applied on
- * the side facing the blast so it spins as well as moves. */
+/* THE BLAST: the pieces of a shattered crate are effects and pass through
+ * everything, so what shoves the neighbours is vpyp_blast — every moving body
+ * within BLAST_R thrown away from the blow, spinning — and what you see of it is
+ * a ring racing out across the floor. */
 static void blast(int32_t cx, int32_t cy, int32_t cz)
 {
-    for (int id = 0; id < VPYP_MAX_BODIES; id++) {
-        if (!vpyp_alive(id) || s_kind[id] >= K_WALL_X) continue;
-        int32_t x, y, z; vpyp_position(id, &x, &y, &z);
-        const int64_t dx = x - cx, dy = y - cy, dz = z - cz;
-        const int64_t d = isqrt64(dx * dx + dy * dy + dz * dz);
-        if (d >= BLAST_R || d == 0) continue;
-        const int32_t m = s_kind[id] == K_CRATE ? 2 : 1;
-        const int64_t k = (int64_t)BLAST_KICK * m * (BLAST_R - d) / BLAST_R;   /* falls off with distance */
-        const int32_t half = s_kind[id] == K_CRATE ? CRATE : BALL;
-        vpyp_apply_impulse_at(id, (int32_t)(dx * k / d), (int32_t)(dy * k / d) + (int32_t)(k / 3),
-                                  (int32_t)(dz * k / d),
-                              x - (int32_t)(dx * half / d), y - (int32_t)(dy * half / d),
-                              z - (int32_t)(dz * half / d));
-    }
+    vpyp_blast(cx, cy, cz, BLAST_R, BLAST_KICK, 0xFF);
+    vpyfx_ring(cx, 2, cz, 0, 1, 0, 60, 2600, 16, 22, 110);
 }
 
 /* the mesh a crate is drawn with: its own once it has been dented */
@@ -290,7 +275,8 @@ static void shoot(void)
     vpyp_hit h;
     const int id = vpyp_raycast(EYE_X, EYE_Y, EYE_Z, dx, dy, dz, 20000, 0xFF, &h);
     if (id == VPYP_NONE) return;
-    s_tracer.x = h.x; s_tracer.y = h.y; s_tracer.z = h.z; s_tracer.life = 6;
+    /* the shot itself: a line from the gun to the hit, fading */
+    vpyfx_line(EYE_X + 300, EYE_Y - 600, EYE_Z + 900, h.x, h.y, h.z, 8, 110);
     vpyfx_burst(h.x, h.y, h.z, 0, 0, 0, 10, 2500, 16, 127);
     if (id >= 0 && s_kind[id] == K_CRATE) {
         /* A MARK where it hit, and on the third hit the crate goes: every edge
@@ -409,11 +395,6 @@ static void draw_effects(void)
     const int32_t a = 90;
     vpy3d_occl_line(s_aim_x - a, 2, s_aim_z, s_aim_x + a, 2, s_aim_z, BR_AIM);
     vpy3d_occl_line(s_aim_x, 2, s_aim_z - a, s_aim_x, 2, s_aim_z + a, BR_AIM);
-    if (s_tracer.life) {
-        vpy3d_line_world(EYE_X + 300, EYE_Y - 600, EYE_Z + 900,
-                         s_tracer.x, s_tracer.y, s_tracer.z, 30 + s_tracer.life * 15);
-        s_tracer.life--;
-    }
 }
 
 static int pressed(int n)

@@ -213,6 +213,7 @@ void vpyp_rotation(int id,int32_t m[9]);                     /* Q14, straight in
 int  vpyp_contact_count(void);  const vpyp_contact *vpyp_contact_get(int i);   /* .impulse: how hard */
 int  vpyp_raycast(int32_t ox,int32_t oy,int32_t oz, int32_t dx,int32_t dy,int32_t dz,
                   int32_t max_dist,uint8_t mask,vpyp_hit *out);
+int  vpyp_blast(int32_t cx,int32_t cy,int32_t cz,int32_t radius,int32_t speed,uint8_t mask);
 const vpyp_stats_t *vpyp_stats(void);                        /* awake, contacts, refused */
 ```
 
@@ -249,6 +250,10 @@ int  vpyfx_burst(int32_t x,int32_t y,int32_t z, int32_t vx,int32_t vy,int32_t vz
                  int count,int32_t speed,int life,int br);
 int  vpyfx_shatter(const vpy_mesh *m,const vpy_xf *place, int32_t vx,int32_t vy,int32_t vz,
                    int32_t cx,int32_t cy,int32_t cz, int32_t speed,int32_t spin,int life,int br);
+int  vpyfx_ring(int32_t cx,int32_t cy,int32_t cz, int32_t nx,int32_t ny,int32_t nz,
+                int32_t r0,int32_t speed,int segments,int life,int br);   /* a shockwave to see */
+int  vpyfx_line(int32_t ax,int32_t ay,int32_t az, int32_t bx,int32_t by,int32_t bz,
+                int life,int br);                             /* stays, fades: a trail */
 void vpyfx_step(void);
 void vpyfx_draw(int occlude);   void vpyfx_draw2d(void);
 const vpyfx_stats_t *vpyfx_stats(void);                       /* alive, drawn, shed, recycled */
@@ -257,8 +262,8 @@ const vpyfx_stats_t *vpyfx_stats(void);                       /* alive, drawn, s
 Effects draw at `VPY_PRI_LOW` within their stroke budget, so they are the first
 thing shed when a frame is full — never the scenery — and what is left out is
 counted. Deterministic, with a seeded generator. Pieces pass through solid
-bodies; a game that wants an explosion to shove its neighbours does it with
-impulses (`examples/physics_demo` has a `blast()`). `vpy-c/tools/fx_check.c` holds
+bodies; what shoves the neighbours of an explosion is `vpyp_blast`, and
+`vpyfx_ring` is the shockwave you see. `vpy-c/tools/fx_check.c` holds
 it to its header. Uses vpy3d (`vpy3d_mesh_edge` reads a mesh's edges).
 
 ### Compiled assets

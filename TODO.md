@@ -54,8 +54,7 @@ Legend: **[ ]** not started · **[x]** done · **[~]** partly done · **(asked)*
   the object already had, falling to zero as pieces fade.
 - [ ] **(idea) Soft bodies.** Mass-spring meshes (jelly, flags, cloth, a wobbling
   blob). Same Verlet core as the ropes; the strokes are the springs.
-- [~] **(idea) Shockwaves.** *As game code in `physics_demo` (`blast()`): a push on every
-  body near the blow. Not in the SDK yet, and no visible ring.* An expanding ring that fades with radius and pushes
+- [x] **(idea) Shockwaves.** *`vpyp_blast` (the push) and `vpyfx_ring` (the ring), 2026-10-01.* An expanding ring that fades with radius and pushes
   bodies it passes. Cost: one ring of N strokes, N fixed.
 
 ## Particles and effects
@@ -65,7 +64,7 @@ Legend: **[ ]** not started · **[x]** done · **[~]** partly done · **(asked)*
   and LOW priority, so particles are the first thing shed, never the scenery.
 - [ ] **(idea) Camera shake and hit-stop.** Screen-space offset on impact, decaying;
   a few frames' freeze on a big hit. Both nearly free.
-- [ ] **(idea) Trails.** Keep the last N positions of a fast object and draw them
+- [x] **(idea) Trails.** *`vpyfx_line`: one a frame behind a moving object, each fading.* Keep the last N positions of a fast object and draw them
   dimmer and dimmer. A vector display's natural afterimage.
 
 ## Animation
