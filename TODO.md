@@ -89,7 +89,7 @@ Legend: **[ ]** not started · **[x]** done · **[~]** partly done · **(asked)*
   on-screen size, so distant objects cost fewer strokes.
 - [x] **(idea) Depth cueing in the SDK.** *`vpy3d_fog`.* Brightness falling with distance, one
   call, instead of every game computing its own fog (hakaba does it by hand).
-- [ ] **(idea) Hidden-line terrain.** Heightmap landscapes with the floating-horizon
+- [x] **(idea) Hidden-line terrain.** *`vpy3d_terrain` (2026-10-01): rows, floating horizon.* Heightmap landscapes with the floating-horizon
   algorithm: rows drawn front to back, each clipped by the highest line so far. The
   natural occluder for terrain, which convex hulls are not.
 - [ ] **(idea) 3D Imager support.** The Vectrex's own stereo goggles: draw a left

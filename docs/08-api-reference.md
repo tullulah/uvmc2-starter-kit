@@ -96,6 +96,8 @@ int  vpy3d_fog(int br,int32_t x,int32_t y,int32_t z,int32_t full_until,int32_t g
 int  vpy3d_shadow(const int32_t (*corners)[3],int n,int32_t lx,int32_t ly,int32_t lz,
                   int32_t floor_y,int br);                    /* hull on the floor */
 int32_t vpy3d_screen_size(int32_t x,int32_t y,int32_t z,int32_t radius);   /* for LOD */
+int  vpy3d_terrain(const int16_t *h,int cols,int rows,int32_t x0,int32_t z0,int32_t cell,int br);
+                                                 /* a height map, its hidden lines hidden */
 
 /* dents: an object's own mesh, pushed in where it was hit */
 int  vpy3d_mesh_copy(vpy_mesh *dst,const vpy_mesh *src);       /* again = reset, no pool */

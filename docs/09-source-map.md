@@ -76,6 +76,7 @@ Sizes are rounded; they tell you whether a file is a glance or a session.
 | `vpy-c/include/vpyfx.h`, `vpy-c/vpyfx.c` | 95+325 | **Sparks, bursts and shattering**, one stroke per piece, within a stroke budget at the lowest priority. |
 | `vpy-c/tools/fx_check.c` | 130 | The effects against their header; exit status = failures. |
 | `vpy-c/tools/phys_check.c` | 140 | The physics against formulas and behaviours; exit status = failures. |
+| `vpy-c/tools/terrain_check.c` | 90 | The floating horizon: flat land all shows, a ridge hides what is behind it, nothing drawn under what came before. |
 | `vpy-c/tools/shade_check.c` | 70 | Fog, shadows and screen size against geometry. |
 | `vpy-c/tools/dent_check.c` | 110 | Mesh copies and dents: undented draws like a plain box, dented shows the fold, recycling uses no pool. |
 | `vpy-c/include/vpycam.h`, `vpy-c/vpycam.c` | 60+90 | A camera that follows (dead zone, lead, no creep), shakes and holds time on a hit. |
