@@ -73,9 +73,9 @@ Legend: **[ ]** not started · **[x]** done · **[~]** partly done · **(asked)*
 - [ ] **(idea) Skeletal animation.** Bones with rigid parts first (each limb a
   mesh on a joint — what kuroishi's figure does by hand), keyframes, blending
   between clips.
-- [ ] **(idea) Inverse kinematics.** Two-bone IK for feet on uneven ground and arms
+- [x] **(idea) Inverse kinematics.** *`vpyik_two_bone` (2026-10-01).* Two-bone IK for feet on uneven ground and arms
   reaching a target.
-- [ ] **(idea) Morphing.** Blend between two shapes with the same vertex count —
+- [x] **(idea) Morphing.** *`vpy3d_mesh_blend` (2026-10-01).* Blend between two shapes with the same vertex count —
   a vector logo turning into a ship. Cost: the larger shape's edges.
 - [x] **(idea) Tweening and easing.** *`vpyease` (2026-10-01).* A small library of fixed-point curves
   (ease in/out, overshoot, bounce) for UI, cameras and animation.

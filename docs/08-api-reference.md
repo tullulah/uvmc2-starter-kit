@@ -106,6 +106,9 @@ void vpy3d_mesh_dent(vpy_mesh *m,int32_t px,int32_t py,int32_t pz,
 void vpy3d_world_to_model(const vpy_xf *place,int32_t wx,int32_t wy,int32_t wz,
                           int32_t *mx,int32_t *my,int32_t *mz);
 
+/* morphing: two poses of one model */
+int  vpy3d_mesh_blend(vpy_mesh *dst,const vpy_mesh *a,const vpy_mesh *b,int32_t t_q14);
+
 /* one solid hiding another */
 void vpy3d_occl_reset(void);                                   /* once a frame */
 int  vpy3d_occl_add(const int32_t (*corners)[3],int n);        /* 3..8 world corners */
@@ -312,6 +315,16 @@ draws as one chained polyline, and `vpyrope_stats()->stretch` says how far the
 worst link was pulled. A replay is three bytes of input a frame and a seed —
 enough, because everything that moves in libvpy is deterministic
 (`tools/replay_check.c` plays 500 frames of physics back exactly).
+
+### Inverse kinematics — `vpyik.h`
+
+```c
+int vpyik_two_bone(const int32_t root[3],const int32_t target[3],int32_t l1,int32_t l2,
+                   const int32_t pole[3],int32_t joint[3],int32_t end[3]);   /* 1 = reached */
+```
+
+Where the elbow (or knee) goes so the hand (or foot) lands on a target,
+bending towards a pole point; stretched straight towards it when out of reach.
 
 ### Steering and paths — `vpyai.h`
 
