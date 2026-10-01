@@ -21,8 +21,8 @@ Legend: **[ ]** not started · **[x]** done · **[~]** partly done · **(asked)*
 
 ## Physics
 
-- [~] **(asked) Rigid bodies with real gravity.** *Done in `vpyphys` (2026-10-01) except
-  rotation: boxes stay axis-aligned.* Position, velocity, mass,
+- [x] **(asked) Rigid bodies with real gravity.** *Done in `vpyphys` (2026-10-01), with
+  rotation: boxes tip and tumble, balls roll. Inertia is a scalar.* Position, velocity, mass,
   restitution, friction, in Q16, stepped at a fixed rate (semi-implicit Euler).
   Resting contact and "sleep" so a pile of boxes stops costing CPU. 2D first,
   then 3D on vpy3d transforms. Costs no strokes; CPU only.
@@ -134,8 +134,8 @@ Legend: **[ ]** not started · **[x]** done · **[~]** partly done · **(asked)*
 
 ## A suggested order
 
-1. ~~**Collision + rigid bodies with gravity**~~ — done (`vpyphys`); **rotation**
-   is what is left of it, and boxes that tumble are what shatter will want.
+1. ~~**Collision + rigid bodies with gravity**~~ — done (`vpyphys`), rotation included.
+   What is left of it: edge-against-edge for boxes, convex hulls beyond boxes.
 2. **Particles with a stroke budget**, then **shatter** — the most visible payoff,
    and the budget rules get settled once.
 3. **Deformation on impact** and **shots that mark what they hit**.

@@ -187,20 +187,29 @@ void vpyp_set_material(int id,int restitution_q8,int friction_q8);
 void vpyp_set_mask(int id,uint8_t mask);                     /* who collides with whom */
 void vpyp_set_velocity(int id,int32_t vx,int32_t vy,int32_t vz);
 void vpyp_apply_impulse(int id,int32_t ix,int32_t iy,int32_t iz);
+void vpyp_apply_impulse_at(int id,int32_t ix,int32_t iy,int32_t iz, int32_t px,int32_t py,int32_t pz);
+void vpyp_set_rotation(int id,int32_t ax,int32_t ay,int32_t az,int angle);   /* 4096 per turn */
+void vpyp_set_spin(int id,int32_t wx,int32_t wy,int32_t wz);  /* 4096ths of a turn per second */
+void vpyp_lock_rotation(int id,int on);                      /* stay upright */
 void vpyp_step(void);                                        /* once per frame at 50 Hz */
 void vpyp_position(int id,int32_t *x,int32_t *y,int32_t *z);
+void vpyp_rotation(int id,int32_t m[9]);                     /* Q14, straight into vpy_xf.m */
 int  vpyp_contact_count(void);  const vpyp_contact *vpyp_contact_get(int i);   /* .impulse: how hard */
 int  vpyp_raycast(int32_t ox,int32_t oy,int32_t oz, int32_t dx,int32_t dy,int32_t dz,
                   int32_t max_dist,uint8_t mask,vpyp_hit *out);
 const vpyp_stats_t *vpyp_stats(void);                        /* awake, contacts, refused */
 ```
 
-Spheres and axis-aligned boxes, a floor, restitution, friction, sleeping
-bodies (a pile at rest costs almost nothing) and a contact list with the
-impulse of each hit — what a dent, a spark or an impact sound reads. **Boxes do
-not rotate yet.** The solver is sequential impulses with warm starting and
-speculative contacts, so a stack holds and a fast body does not tunnel through
-a thin wall. `vpy-c/tools/phys_check.c` checks it against formulas (free fall,
+Spheres and boxes, a floor, restitution, friction, sleeping bodies (a pile at
+rest costs almost nothing) and a contact list with the impulse of each hit —
+what a dent, a spark or an impact sound reads. **Bodies turn:** a hit
+off-centre spins them, boxes tip over and tumble, balls roll;
+`vpyp_rotation()` gives the turn as a Q14 matrix to draw with. Inertia is
+a scalar, exact for spheres and cubes; box against box tests the six face axes
+but not edge against edge. The solver is sequential impulses with warm
+starting and speculative contacts, so a stack holds and a fast body does not
+tunnel through a thin wall. ~19 KB of code and ~80 KB of RAM, almost all of it
+the contact table. `vpy-c/tools/phys_check.c` checks it against formulas (free fall,
 braking distance, momentum) and behaviours; its numbers are in the header.
 
 A full table is a limit the game handles: compare `vpyp_stats()->bodies` with

@@ -18,8 +18,9 @@
  * table is full the oldest dropped body is recycled; vpyphys counts a refusal
  * either way, so a full table is never silent.
  *
- * Boxes collide as axis-aligned boxes and are drawn that way: vpyphys has no
- * rotation yet (see its header).
+ * Bodies TURN: a shot off-centre spins a crate, crates tip over edges and
+ * tumble, balls roll — each ball carries a ring that turns with it, because a
+ * sphere's outline alone cannot show it rolling.
  */
 #include <vpy.h>
 #include <vpy3d.h>
@@ -38,6 +39,11 @@
 #define DROP_Y       1600
 #define SHOT_KICK   20000     /* mm/s per unit of mass, along the ray */
 #define AIM_SPEED      40     /* mm per frame at full stick */
+/* At most this many bodies at once, of vpyphys's 64. MEASURED, not chosen: with
+ * all 64 alive and tumbling the frame peaked at 955 strokes, over the ~940 one
+ * frame holds; each ball's ring costs about four. 48 keeps the worst frame
+ * inside it. */
+#define DEMO_BODIES    48
 
 #define BR_SOLID      110
 #define BR_FLOOR       40
@@ -147,7 +153,7 @@ static void drop(int ball)
 {
     int alive = 0;
     for (int id = 0; id < VPYP_MAX_BODIES; id++) alive += vpyp_alive(id);
-    if (alive >= VPYP_MAX_BODIES && s_ndropped > 0) {
+    if (alive >= DEMO_BODIES && s_ndropped > 0) {
         vpyp_remove(s_dropped[0]);
         for (int i = 1; i < s_ndropped; i++) s_dropped[i - 1] = s_dropped[i];
         s_ndropped--;
@@ -179,12 +185,13 @@ static void shoot(void)
     s_tracer.x = h.x; s_tracer.y = h.y; s_tracer.z = h.z; s_tracer.life = 6;
     if (id >= 0) {
         /* the kick along the ray, the same speed whatever the ray's length or
-         * the body's mass, plus a little lift so things tumble over */
+         * the body's mass, AT the point it hit: off-centre, it spins the body */
         const int64_t l = isqrt64((int64_t)dx * dx + (int64_t)dy * dy + (int64_t)dz * dz);
         const int32_t m = s_kind[id] == K_CRATE ? 2 : 1;
-        vpyp_apply_impulse(id, (int32_t)((int64_t)dx * SHOT_KICK * m / l),
-                               (int32_t)((int64_t)dy * SHOT_KICK * m / l) + SHOT_KICK * m / 4,
-                               (int32_t)((int64_t)dz * SHOT_KICK * m / l));
+        vpyp_apply_impulse_at(id, (int32_t)((int64_t)dx * SHOT_KICK * m / l),
+                                  (int32_t)((int64_t)dy * SHOT_KICK * m / l) + SHOT_KICK * m / 4,
+                                  (int32_t)((int64_t)dz * SHOT_KICK * m / l),
+                              h.x, h.y, h.z);
     }
 }
 
@@ -209,13 +216,40 @@ static int64_t dist2(int id)
     return dx * dx + dy * dy + dz * dz;
 }
 
+/* A ring round a ball, in the ball's own frame, so it turns as the ball rolls.
+ * Only the segments on the side facing the camera: the ball's own silhouette
+ * hides the rest, and drawing it would show straight through the ball. */
+#define RING_SEG 10
+static void draw_ring(const vpy_xf *at, int br)
+{
+    int32_t px = 0, py = 0, pz = 0;
+    for (int i = 0; i <= RING_SEG; i++) {
+        const int a = i * VPY_Q14_TURN / RING_SEG;
+        const int32_t lx = BALL * vpy_cos_q14(a) / VPY_Q14_ONE, lz = BALL * vpy_sin_q14(a) / VPY_Q14_ONE;
+        /* the ring is the ball's equator in its own frame: x and z, y = 0 */
+        const int32_t wx = (at->m[0] * lx + at->m[2] * lz) / VPY_Q14_ONE;
+        const int32_t wy = (at->m[3] * lx + at->m[5] * lz) / VPY_Q14_ONE;
+        const int32_t wz = (at->m[6] * lx + at->m[8] * lz) / VPY_Q14_ONE;
+        const int32_t qx = at->t[0] + wx, qy = at->t[1] + wy, qz = at->t[2] + wz;
+        if (i) {
+            /* facing the camera: the segment's middle leans towards the eye */
+            const int64_t mx = (px + qx) / 2 - at->t[0], my = (py + qy) / 2 - at->t[1], mz = (pz + qz) / 2 - at->t[2];
+            const int64_t ex = EYE_X - at->t[0], ey = EYE_Y - at->t[1], ez = EYE_Z - at->t[2];
+            if (mx * ex + my * ey + mz * ez > 0) vpy3d_occl_line(px, py, pz, qx, qy, qz, br);
+        }
+        px = qx; py = qy; pz = qz;
+    }
+}
+
 static void draw_body(int id)
 {
     int32_t x, y, z; vpyp_position(id, &x, &y, &z);
-    const vpy_xf at = vpy3d_translate(x, y, z);
+    vpy_xf at = vpy3d_translate(x, y, z);
+    vpyp_rotation(id, at.m);                 /* the turn it really has */
     const vpy_mesh *m = s_kind[id] == K_BALL ? &s_ball : s_kind[id] == K_CRATE ? &s_crate
                       : s_kind[id] == K_WALL_X ? &s_wall_x : &s_wall_z;
     vpy3d_draw_mesh(m, &at, s_kind[id] >= K_WALL_X ? BR_FLOOR + 20 : BR_SOLID);
+    if (s_kind[id] == K_BALL) draw_ring(&at, BR_SOLID - 30);
     /* AFTER drawing it. A ball hides by the octahedron inside it — a little
      * less than the ball, never more — and a box by its own eight corners. */
     if (s_kind[id] == K_BALL) {
