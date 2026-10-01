@@ -73,8 +73,91 @@ int  vpy_sin_q14(int a), vpy_cos_q14(int a);    /* 4096 steps per turn, 16384 = 
 When the buffer is full, a stroke evicts a lower-priority one or is dropped. That
 is the game library choosing, not the SDK: the SDK draws what it is asked
 (invariant 4). It is always counted, so if `shed` or `dropped` is non-zero, the
-frame on screen is not the frame the game built. `vpy3d.h` is a small 3D layer
-(meshes, camera, projection) on top of the same buffer.
+frame on screen is not the frame the game built.
+
+### 3D — `vpy3d.h`
+
+A small 3D layer on top of the same stroke buffer: meshes with hidden-line
+removal *within* each mesh, a camera, a projection and a screen clip. Integer
+only. The header is the reference; this is the shape of it.
+
+```c
+int  vpy3d_look_at(int32_t ex,int32_t ey,int32_t ez, int32_t tx,int32_t ty,int32_t tz,
+                   int32_t ux,int32_t uy,int32_t uz);
+void vpy3d_set_focal(int32_t f), vpy3d_set_near(int32_t n), vpy3d_set_clip(int32_t h);
+void vpy3d_set_clip_xy(int32_t hx,int32_t hy);       /* the window per axis; default 15500 square */
+void vpy3d_set_aspect(int32_t num,int32_t den);      /* x scale; default 1/1, see below */
+int  vpy3d_h_half_angle(void), vpy3d_v_half_angle(void);   /* what is on screen, Q14 units */
+void vpy3d_draw_mesh(const vpy_mesh *m,const vpy_xf *place,int br);
+void vpy3d_line_world(int32_t ax,int32_t ay,int32_t az, int32_t bx,int32_t by,int32_t bz,int br);
+
+/* one solid hiding another */
+void vpy3d_occl_reset(void);                                   /* once a frame */
+int  vpy3d_occl_add(const int32_t (*corners)[3],int n);        /* 3..8 world corners */
+int  vpy3d_occl_add_mesh(const vpy_mesh *m,const vpy_xf *place);   /* <= 8 vertices */
+void vpy3d_occl_line(int32_t ax,int32_t ay,int32_t az, int32_t bx,int32_t by,int32_t bz,int br);
+int  vpy3d_occl_count(void);
+```
+
+**One unit is one unit on both axes; the glass is portrait.** Measured
+2026-10-01 by photograph on one console, with `examples/geometry_card` (device
+units straight to `v_directDraw32`): a 16000-unit square is square on the glass
+to within ~10%, and the visible window was about **±18000 × ±20500** — narrower
+than the contract's "roughly ±24000" in y. So the portrait shape belongs in the
+*window*, not in the scale, as the PiTrex contract and the BIOS assume.
+
+The projection's x scale (`vpy3d_set_aspect`) defaults to 1/1. For one day
+(2026-09-30) it defaulted to 4/3, from a service-manual argument that was never
+measured; the photograph refuted it. The knob stays for a console whose size
+pots are off. The clip defaults to the 15500 square every vpy3d game has been
+composed in; `vpy3d_set_clip_xy` opens the taller window. Neither default moves
+on one console's evidence — photograph the card on a second one first.
+`vpy-c/tools/aspect_check.c` is the host witness: a world square projects with
+w/h = 1.000, and each half angle follows its own axis's clip. Read the field of
+view with `vpy3d_h/v_half_angle` rather than writing "58 degrees" a second time.
+
+**Occlusion between solids is the caller's job, done with a silhouette.** Hidden
+lines are removed within a mesh, never between two: with no depth buffer, a
+second solid in front of the first is simply not there, and you see through it.
+Any game with two solids on screen has this until it uses the occluder. A convex
+solid's silhouette is the convex hull of its projected corners; a line behind it
+is the line minus the part inside the hull, exact for convex occluders. With no
+occluder added, `vpy3d_occl_line` *is* `vpy3d_line_world` plus one compare, so a
+game can send every stroke through it.
+
+There is **no depth test**. Order makes a silhouette mean "behind":
+
+```c
+vpy3d_occl_reset();
+/* draw the nearest solid */      vpy3d_occl_add_mesh(&m, &at);   /* after, never before */
+/* draw the next one, near to far, each line through vpy3d_occl_line */
+```
+
+Things at the same depth are drawn as a group and only then added — otherwise
+the first one drawn bites a piece out of its neighbour. The one guard built in:
+a line wholly nearer than an occluder's nearest corner is never cut by it.
+
+What it does **not** cut, each of which looks like a broken occluder:
+
+| | |
+|---|---|
+| `vpy3d_draw_mesh` | Only strokes through `vpy3d_occl_line` are cut. Draw meshes before the silhouettes that should hide them. |
+| a visible piece < 1/48 of the line's screen length | Dropped as a sliver; about 2% of the screen on a full-width stroke. |
+| an occluder with a corner behind the near plane | Refused (`vpy3d_occl_add` returns 0, `occl_refused` counts it) — that frame it hides nothing. |
+| the 65th occluder | Refused, counted in `occl_full`. Add the nearest first. |
+| an occluder many screens wide | The projection saturates and the hull arithmetic overflows. Clamp it to the visible window before adding it. |
+
+A line with an end behind the near plane *is* cut: it is clipped to the near
+plane first, with `vpy3d_line_cam`'s own arithmetic, and the rest is tested.
+
+`vpy3d_stats()` counts it per frame (zeroed by `vpy3d_reset_counts`):
+`occl_cut` is lines that lost a part — **the proof it ran**: with solids behind
+silhouettes on screen and `occl_cut` at zero, the order is wrong, not the
+occluder. `occl_refused` and `occl_full` count every occluder not taken.
+
+It came from kuroishi (2026-09-24, "the waves look transparent while they
+move") and moved into the SDK when hakaba needed the same thing; hakaba's
+`game_draw` (in the private repository) is the worked example of the ordering.
 
 ### Compiled assets
 
@@ -264,6 +347,7 @@ void     uvm2_via_write(uint32_t reg,uint32_t data);
 uint8_t  uvm2_via_read(uint32_t reg);
 void     uvm2_measure_e(void);
 extern uint32_t uvm2_cycles_per_e_q8;   /* CPU cycles per E period, Q8 */
+uint32_t uvm2_now_us(void);             /* TIMER0 microseconds; 0 on a host harness */
 
 extern uvm2_stats_t uvm2_stats;
 ```
@@ -318,7 +402,13 @@ of the Vectrex's sound chip. `uvm2_jack.h`:
 int  uvm2_jack_init(void);                      /* 1 = running, 0 = no jack on this board */
 int  uvm2_jack_space(void);                     /* samples to write now to stay ahead */
 void uvm2_jack_write(const int16_t *s,int n);   /* mono, UVM2_JACK_RATE */
+void uvm2_jack_write_lr(const int16_t *l,const int16_t *r,int n);   /* stereo, same ring */
 ```
+
+The DAC is stereo: one 32-bit word of the ring is a frame, left in the high half.
+`uvm2_jack_write` puts the same sample in both halves; a game with two sources to
+separate (Star Wars: the POKEYs and a voice) calls `uvm2_jack_write_lr`. Same
+ring, same DMA, same `uvm2_jack_space()`.
 
 It runs on the system clock measured against the Vectrex's E at boot. The per-game
 `audio` setting (`UVM2_SETTING_AUDIO`, 0 = jack, 1 = console chip) is stored for

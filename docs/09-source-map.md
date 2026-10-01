@@ -30,8 +30,8 @@ Sizes are rounded; they tell you whether a file is a glance or a session.
 | `uvm2_romzip.c` | 100 | Reads `roms/<game>.zip` off the card and publishes the `'RMZ1'` descriptor. |
 | `uvm2_psram.c/.h` | 1150+220 | Brings up the 8 MB on CS1, plus three diagnostic probes. |
 | `uvm2_config.c/.h` | 370+145 | Per-**console** beam calibration, on the SD card. The `.h` explains every field. |
-| `uvm2_wizard.c` | 360 | **The calibration screen**: the text pattern for ZERO, the wheel and the two squares, and the buttons 2+3 check at launch. Read with [12](12-calibrating-a-console.md). |
-| `uvm2_jack.c/.h` | 240+60 | The UVMC2's PT8211 16-bit audio jack: PIO2 + DMA, 32 kHz mono. A driver, not a sound engine. |
+| `uvm2_wizard.c` | 360 | **The calibration screen**: the text pattern for ZERO, the wheel and the two squares, the RINGS burst, FIGURE on button 1, and the buttons 2+3 check at launch. Read with [12](12-calibrating-a-console.md). |
+| `uvm2_jack.c/.h` | 240+60 | The UVMC2's PT8211 16-bit audio jack: PIO2 + DMA, 32 kHz stereo (`uvm2_jack_write` for mono, `_lr` for two channels). A driver, not a sound engine. |
 | `uvm2_text.c/.h`, `uvm2_font.h` | 170 | A 4×6 stroke font, ASCII 32..90: `uvm2_print_text` (re-zeroes per glyph) and `uvm2_print_text_chained` (draws like a game, for the zero calibration). |
 | `uvm2_led.c/.h` | 155 | The status LED — the bring-up channel of last resort — and clock calibration. |
 | `uvm2_bus_stream.h` | 46 | The C face of the Rust bus crate. No implementation here. |
@@ -70,7 +70,8 @@ Sizes are rounded; they tell you whether a file is a glance or a session.
 |---|---|---|
 | `vpy-c/include/vpy.h` | 160 | The game library's API, with the asset formats described per group. |
 | `vpy-c/vpy.c` | 1700 | Its implementation: shapes, `.vec`/`.vanim` readers, text, math, the level and enemy runtimes, and the **stroke buffer** every drawing call goes through (flushed once per frame). |
-| `vpy-c/include/vpy3d.h`, `vpy-c/vpy3d.c` | 215+620 | A small 3D layer in C (meshes, camera, projection), drawing through the stroke buffer. |
+| `vpy-c/include/vpy3d.h`, `vpy-c/vpy3d.c` | 315+915 | A small 3D layer in C (meshes, camera, projection, a per-axis window), drawing through the stroke buffer, plus the **screen-space occluder** that lets one solid hide another. The header's occlusion block is the manual. |
+| `vpy-c/tools/aspect_check.c` | 70 | Host witness for the lens: a world square must project square (w/h 1.000), and each half angle must follow its own axis's clip. |
 | `pitrex-sim/include/vectrex/vectrexInterface.h` | 75 | **The backend-neutral contract.** 20 declarations; the most important file in the kit per byte. |
 | `pitrex-sim/sdk_host.c` | — | The host/WASM implementation of that contract. |
 | `sdk/tools/package_um2.py` | 60 | The 20-byte `.um2` header. |
@@ -150,6 +151,8 @@ for ever).
 | how an arcade game is ported | [10](10-porting-an-aae-game.md), then `game/tacscan/src/aae_machine.c` |
 | how to go from a MAME driver | [11](11-porting-from-mame.md) |
 | what is calibrated per console, and how | [12](12-calibrating-a-console.md), then `sdk/uvm2-sdk/uvm2_config.h` |
+| why a solid is see-through, or the occluder seems not to work | `sdk/vpy-c/include/vpy3d.h` ("ONE SOLID HIDING ANOTHER"), then [08](08-api-reference.md) "3D" |
+| what shape a unit is on the glass, and where the glass ends | `examples/geometry_card/src/main.c`, photographed; [08](08-api-reference.md) "3D" |
 | why text leans into diagonals on some consoles | [12](12-calibrating-a-console.md), "The zero" |
 
 ## Files whose *comments* are the documentation

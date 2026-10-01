@@ -107,6 +107,10 @@ If the combination seems to do nothing, read `uvm2_boot_combo` over SWD
 
 * **Up / down** chooses a field.
 * **Left / right** changes it, continuously while held.
+* **Button 1** cycles the figure — AUTO, TEXT, WHEEL, RINGS — without leaving the
+  field you are on, so one value can be judged on more than one figure. It is also
+  the FIGURE field, which is not saved: what you calibrate against is a choice made
+  at the screen, not a property of the console.
 * **Button 4** saves to `config/uvm2.cfg` and starts the game. Release it and
   press it again: the press that launched the game does not count.
 
@@ -116,6 +120,12 @@ Saving creates `config/` and the file if they do not exist. If the save fails,
 ---
 
 ## Reading the screen
+
+**FIGURE decides what is drawn.** AUTO is the old behaviour: the text below while
+ZERO is selected, the wheel and squares (or the game's own figure) otherwise.
+TEXT, WHEEL and RINGS force one, whatever field is selected — because one zero
+cannot serve two scales: the text and the rings are far apart in size, and a
+setting judged on one of them is judged on a third of the picture.
 
 ### With ZERO selected: lines of text
 
@@ -153,6 +163,27 @@ from the **number** of strokes, not their length:
 
 The dots along the bottom square are its 40 joints: a stroke's ends are brighter
 than its middle. They are not a fault.
+
+### RINGS: the death star's explosion
+
+Star Wars throws concentric rings out from the centre when the death star blows
+up, and on a tester's console the big ones came out skewed and open while the
+small one was round. RINGS draws the same burst — one ring born per frame, up to
+fifty, each sixteen strokes with the same vertex count — so radius and chord grow
+in step:
+
+| what you see | what it means |
+|---|---|
+| every ring fails by the same amount | the fixed per-stroke term: **TAIL** |
+| the failure grows with the radius | a term proportional to length: **SCALE** |
+| it appears suddenly past some radius | a limit, not a slope |
+
+It is almost all strokes (the jump between rings is two units), so what comes out
+wrong came out of the strokes; the wheel is where jumps are tested. **It overruns
+the frame on purpose** — fifty rings is 800 vectors, and so is the real explosion.
+The readout under it gives the list's cycles and **FIT/OVER**: a list replayed a
+piece at a time and deformed geometry look alike on a television, so read that
+before adjusting anything.
 
 ### A good order
 
