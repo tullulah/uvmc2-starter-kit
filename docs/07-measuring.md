@@ -11,6 +11,7 @@ it on screen. The ones that decide whether any other number is worth reading:
 | field | read it as |
 |---|---|
 | `dropped` | commands lost because the list was full. **Non-zero means nothing on screen is evidence.** |
+| `ramps_clamped` | ramps started while the zero clamp was on, last frame. **Must be 0**: such a ramp draws a line out of the centre instead of the stroke asked for. See [04](04-drawing.md), "Re-zeroing". |
 | `recals` | cumulative recalibrations. If it does not climb, `Recalibrate` is *not being called* — "it does not work" and "it never ran" are different investigations. |
 | `commands`, `bus_cycles`, `exec_cycles` | the frame's size, in commands and in bus cycles (667 ns each; 30 000 = 50 Hz). |
 | `vectors`, `moves` | lit strokes vs blanked repositions. The ratio is the chaining. |

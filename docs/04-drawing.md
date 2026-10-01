@@ -84,6 +84,16 @@ The integrators drift. Two safety nets, both in `uvm2_draw.c`:
 
 A re-zero costs commands, so it is a trade, not a free win.
 
+**And one that is not a trade: the frame's first jump always re-zeroes if the
+clamp is still on.** The frame prologue leaves `/ZERO` asserted, and in the SR
+dialect only the re-zero block releases it. When the first stroke of a frame
+started near the centre (any 3D scene looking at its subject), the first jump was
+shorter than `uvm2_zero_jump`, nothing released the clamp, and the first chain of
+strokes was drawn with both integrators held at the origin: missing from the
+picture and lit as lines out of (0,0) — an "asterisk", one arm per chained stroke.
+Fixed 2026-10-01; `uvm2_stats.ramps_clamped` counts any ramp started with the
+clamp on and must stay 0.
+
 `uvm2_zero_offset` is the value primed into the zero reference and belongs to the
 **console**, not to the game (see `uvm2_config.h`). The Vectrex BIOS writes 0
 there; other cartridges write a non-zero value per console and per scale, which is

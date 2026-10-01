@@ -96,6 +96,8 @@ void vpy3d_occl_reset(void);                                   /* once a frame *
 int  vpy3d_occl_add(const int32_t (*corners)[3],int n);        /* 3..8 world corners */
 int  vpy3d_occl_add_mesh(const vpy_mesh *m,const vpy_xf *place);   /* <= 8 vertices */
 void vpy3d_occl_line(int32_t ax,int32_t ay,int32_t az, int32_t bx,int32_t by,int32_t bz,int br);
+void vpy3d_occl_line_cam(const int32_t *a,const int32_t *b,int br);   /* camera space */
+void vpy3d_set_mesh_occlusion(int on);                         /* draw_mesh cut too; default off */
 int  vpy3d_occl_count(void);
 ```
 
@@ -133,6 +135,12 @@ vpy3d_occl_reset();
 /* draw the next one, near to far, each line through vpy3d_occl_line */
 ```
 
+**Meshes, moving or not.** Occluders are rebuilt every frame, so solids that
+move, turn or change depth order need nothing special. With
+`vpy3d_set_mesh_occlusion(1)`, the strokes `vpy3d_draw_mesh` emits are cut like
+any line, after the mesh's own hidden-line removal: draw a mesh, then
+`vpy3d_occl_add_mesh` it, near to far.
+
 Things at the same depth are drawn as a group and only then added — otherwise
 the first one drawn bites a piece out of its neighbour. The one guard built in:
 a line wholly nearer than an occluder's nearest corner is never cut by it.
@@ -141,7 +149,7 @@ What it does **not** cut, each of which looks like a broken occluder:
 
 | | |
 |---|---|
-| `vpy3d_draw_mesh` | Only strokes through `vpy3d_occl_line` are cut. Draw meshes before the silhouettes that should hide them. |
+| `vpy3d_draw_mesh`, by default | Cut only after `vpy3d_set_mesh_occlusion(1)`. Off by default because a game may rely on a mesh never being cut. |
 | a visible piece < 1/48 of the line's screen length | Dropped as a sliver; about 2% of the screen on a full-width stroke. |
 | an occluder with a corner behind the near plane | Refused (`vpy3d_occl_add` returns 0, `occl_refused` counts it) — that frame it hides nothing. |
 | the 65th occluder | Refused, counted in `occl_full`. Add the nearest first. |
@@ -157,8 +165,9 @@ occluder. `occl_refused` and `occl_full` count every occluder not taken.
 
 It came from kuroishi (2026-09-24, "the waves look transparent while they
 move") and moved into the SDK when hakaba needed the same thing.
-`examples/occlusion_demo` is the worked example in this kit: three boxes and a
-floor, drawn near to far, with button 1 switching the occluder off to compare.
+`examples/occlusion_demo` is the worked example in this kit: three turning
+meshes and a floor, drawn near to far, with button 1 switching the occluder off
+to compare.
 
 ### Compiled assets
 
