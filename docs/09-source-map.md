@@ -84,6 +84,8 @@ Sizes are rounded; they tell you whether a file is a glance or a session.
 | `vpy-c/include/vpyrope.h`, `vpy-c/vpyrope.c` | 80+190 | Ropes and chains: Verlet points, links, pins, a floor. |
 | `vpy-c/include/vpyreplay.h`, `vpy-c/vpyreplay.c` | 55+60 | Record the input, play it back; with a seed, the whole game repeats. |
 | `vpy-c/tools/rope_check.c`, `replay_check.c` | 100+80 | A rope's hang and a pendulum's period; a replay that repeats physics exactly. |
+| `vpy-c/include/vpyai.h`, `vpy-c/vpyai.c` | 60+200 | Steering (seek, flee, arrive, separate, turn rate) and A* across a grid. |
+| `vpy-c/tools/ai_check.c` | 110 | The behaviours' answers, and A* against Dijkstra on random grids. |
 | `vpy-c/tools/aspect_check.c` | 70 | Host witness for the lens: a world square must project square (w/h 1.000), and each half angle must follow its own axis's clip. |
 | `pitrex-sim/include/vectrex/vectrexInterface.h` | 75 | **The backend-neutral contract.** 20 declarations; the most important file in the kit per byte. |
 | `pitrex-sim/sdk_host.c` | — | The host/WASM implementation of that contract. |

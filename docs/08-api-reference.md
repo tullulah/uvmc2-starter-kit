@@ -311,6 +311,20 @@ worst link was pulled. A replay is three bytes of input a frame and a seed —
 enough, because everything that moves in libvpy is deterministic
 (`tools/replay_check.c` plays 500 frames of physics back exactly).
 
+### Steering and paths — `vpyai.h`
+
+```c
+void vpyai_seek(const int32_t pos[3],const int32_t target[3],int32_t speed,int32_t out[3]);
+void vpyai_arrive(const int32_t pos[3],const int32_t target[3],int32_t speed,int32_t slow_radius,int32_t out[3]);
+void vpyai_separate(const int32_t pos[3],const int32_t (*others)[3],int n,int32_t radius,int32_t strength,int32_t out[3]);
+void vpyai_steer(int32_t v[3],const int32_t desired[3],int32_t max_change);   /* a turn rate */
+int  vpyai_path(const uint8_t *grid,int w,int h,int sx,int sy,int gx,int gy,
+                int diagonal,int16_t *out_xy,int max_cells);  /* A*: 0 free, 255 wall, else dearer */
+```
+
+A* returns the cheapest path — `tools/ai_check.c` compares it with Dijkstra on
+196 random grids — with the same answer every time and fixed memory.
+
 ### Compiled assets
 
 ```c

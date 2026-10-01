@@ -102,7 +102,8 @@ Legend: **[ ]** not started · **[x]** done · **[~]** partly done · **(asked)*
 - [ ] **(idea) An entity/scene layer.** Objects with transform, mesh, body and
   collider; the SDK does near-to-far ordering and occluder registration, removing
   the ordering trap from the occluder.
-- [ ] **(idea) Steering and pathfinding.** Seek, flee, arrive, separation (flocks
+- [x] **(idea) Steering and pathfinding.** *`vpyai` (2026-10-01); flocking is separate +
+  seek, alignment not a call of its own.* Seek, flee, arrive, separation (flocks
   of vector birds); grid A* for enemies in mazes.
 - [x] **(idea) A camera system.** *`vpycam`: follow with dead zone and lead, shake, hit-stop;
   scripted paths not done.* Follow with look-ahead, dead zones, shake,
