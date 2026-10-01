@@ -156,8 +156,9 @@ silhouettes on screen and `occl_cut` at zero, the order is wrong, not the
 occluder. `occl_refused` and `occl_full` count every occluder not taken.
 
 It came from kuroishi (2026-09-24, "the waves look transparent while they
-move") and moved into the SDK when hakaba needed the same thing; hakaba's
-`game_draw` (in the private repository) is the worked example of the ordering.
+move") and moved into the SDK when hakaba needed the same thing.
+`examples/occlusion_demo` is the worked example in this kit: three boxes and a
+floor, drawn near to far, with button 1 switching the occluder off to compare.
 
 ### Compiled assets
 
