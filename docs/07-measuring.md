@@ -171,7 +171,7 @@ padding (937 cycles per operation instead of 48).
 | `smp_stats.py` | Reads the mixer histograms `-DUVM2_SMP_TELEM=1` produces. |
 | `list_from_rtt.py` | The command list **the console actually ran**, from the debug cartridge BIOS's RTT dump (`CMD_DUMP`, buttons 1+2 held on a frozen frame). Refuses if the passes disagree. |
 | `list_from_sd.py` | The same list from the SD card: `uvm2_dump_list` (or `uvm2_dump_list_on_buttons` once a frame) writes the last closed frame with a header — count, frame, `dropped`, `ramps_clamped`, a hash — and this refuses a file whose magic, length or hash is wrong, and warns when `dropped` is not zero. No probe needed. |
-| `beam_sim.py` | Plays a list against an ideal beam and reports what the **list** gets wrong: ramps started with the zero clamp on (must be 0), lit cycles under the clamp, the frame's length; draws what is lit as an SVG. |
+| `beam_sim.py` | Plays a list against an ideal beam and reports what the **list** gets wrong: ramps started with the zero clamp on (must be 0), lit cycles under the clamp, the frame's length, and how long the integrators ran **dark and free** with `/RAMP` held open by Port B — a slow dark sweep is a line once the brightness is up; draws what is lit as an SVG, and where the blanked beam went in faint red. |
 
 **From the console to an answer, without halting it.** Freeze the frame, hold
 1+2 while `probe-rs attach` (which halts nothing) saves the RTT, then:

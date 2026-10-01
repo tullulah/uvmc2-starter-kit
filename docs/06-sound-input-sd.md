@@ -276,16 +276,24 @@ entirely, stray bright vectors dropped from 4-5 per frame to 1.** That is why
 `/RAMP` is held asserted-off through the whole conversion, and why the constants
 carry bit 7.
 
-Two modes, chosen with `uvm2_input_set_analog()`:
+**One read, two shapes.** Every axis is read with successive approximation, the
+BIOS's `Joy_Analog` algorithm (**the sign bit is the first thing the comparator
+decides** — an earlier version started at 0x40 and never touched bit 7, so it could
+only return 0..0x7F, a centred stick read ~64, and every game saw "hard right").
+The stick's rest is **not** zero — measured X 4..12, Y 31..48 on one console — so
+the first reading is taken as the centre and subtracted from every one after.
+`uvm2_input_set_analog()` picks the shape:
 
-* **digital** (default): drive the DAC to 0, let the comparator settle, probe once
-  above and once below. Tells "pushed" from "centred", scaled to ±127 so ordinary
+* **digital** (default): -127 / 0 / +127, past half the travel, so ordinary
   `if (x > 32)` game code behaves as it does on a real cartridge.
-* **analog**: successive approximation, the BIOS's `Joy_Analog` algorithm. Costs
-  about seven extra read cycles per axis. **The sign bit is the first thing the
-  comparator decides** — an earlier version started at 0x40 and never touched bit
-  7, so it could only return 0..0x7F, a centred stick read ~64, and every game saw
-  "hard right".
+* **analog**: the centred value, 0 inside a small dead zone.
+
+There used to be a separate digital read that probed the comparator with the DAC
+at ±64. It left a **dot** on the tube: with the brightness up, a spot on the
+diagonal that followed the stick, in every game and in the BIOS menu, and none in
+Minestorm. Bisected on the console (2026-10-02) by switching parts of the read off
+over SWD: the probe was the cause, zeroing the DAC afterwards did not cure it, and
+the analog read leaves nothing.
 
 ---
 

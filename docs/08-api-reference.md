@@ -565,7 +565,7 @@ reason (`UVM2_DUMP_CORE1`, `_EMPTY`, `_SD`, and then `uvm2_sd_error`).
 
 Runtime knobs (all `volatile`, all with a long comment at their definition):
 `uvm2_zero_jump`, `uvm2_zero_every`, `uvm2_zero_offset`, `uvm2_pacer_cycles`,
-`uvm2_hold_y_min/max`, `uvm2_hold_z_min/max`, `uvm2_sweep_t1_max`.
+`uvm2_filler_clamp`, `uvm2_hold_y_min/max`, `uvm2_hold_z_min/max`, `uvm2_sweep_t1_max`.
 
 ### The bus — `uvm2_bus.h`
 
@@ -597,7 +597,7 @@ Command encoding and VIA register/bit names also live here:
 ```c
 uint8_t  uvm2_read_buttons(void);      /* RAW: active-low, J1 in bits 0-3, J2 in 4-7 */
 uint32_t uvm2_read_axes(void);         /* four packed int8: j1x, j1y, j2x, j2y */
-void     uvm2_input_set_analog(int enable);   /* 0 = digital (default), 1 = SAR */
+void     uvm2_input_set_analog(int enable);   /* 0 = -127/0/+127 (default), 1 = centred analog */
 void     uvm2_psg_write(uint32_t reg,uint32_t value);
 uint8_t  uvm2_psg_read(uint32_t reg);
 ```
