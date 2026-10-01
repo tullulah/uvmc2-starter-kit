@@ -53,8 +53,19 @@
 #define DENT_IMPULSE 5000     /* a contact harder than this dents a crate */
 #define DENT_PER     2500     /* ...by 1 mm for every this much more */
 #define DENT_MAX       70     /* and never deeper than this (mm) */
-#define DENT_R        170     /* how far round the point a dent reaches (mm) */
-#define SHOT_DENT      55     /* a shot's dent (mm) */
+#define DENT_R        200     /* how far round the point a dent reaches (mm) */
+/* A shot's dent (mm), deep on purpose: a 55 mm dent in a 260 mm crate was not
+ * visible on the console — the crate is a few mm across on the tube. */
+#define SHOT_DENT      95
+/* A crate a shot hits only rocks: with the full kick it flew off, the next two
+ * shots missed it, and the dent went with it out of sight (on the console). */
+#define CRATE_NUDGE     6     /* the shot's kick on a crate, divided by this */
+/* THE MARK a shot leaves: a small bright ring on the face it hit, kept in the
+ * crate's own space so it turns with it. On something this small on screen it
+ * reads where a dent's fold does not. */
+#define MARKS           3
+#define MARK_R         40
+#define BR_MARK       127
 #define SHOTS_TO_BREAK  3
 #define AIM_SPEED      40     /* mm per frame at full stick */
 /* At most this many bodies at once, of vpyphys's 64. MEASURED, not chosen: with
@@ -77,6 +88,8 @@ static vpy_mesh s_crate, s_ball, s_wall_x, s_wall_z;
  * eats the vpy3d pools (sized in the Makefile for one per slot). */
 static vpy_mesh s_own[VPYP_MAX_BODIES];
 static uint8_t  s_dented[VPYP_MAX_BODIES], s_hits[VPYP_MAX_BODIES];
+static struct { int16_t p[3], n[3]; } s_mark[VPYP_MAX_BODIES][MARKS];   /* model space; n Q14 */
+static uint8_t  s_nmarks[VPYP_MAX_BODIES];
 
 enum { K_CRATE, K_BALL, K_WALL_X, K_WALL_Z };
 static uint8_t s_kind[VPYP_MAX_BODIES];
@@ -153,7 +166,7 @@ static void build_ball(vpy_mesh *m, int r)
 static int add_crate(int32_t x, int32_t y, int32_t z)
 {
     const int id = vpyp_add_box(x, y, z, CRATE, CRATE, CRATE, 2);
-    if (id >= 0) { s_kind[id] = K_CRATE; vpyp_set_material(id, 40, 150); s_dented[id] = 0; s_hits[id] = 0; }
+    if (id >= 0) { s_kind[id] = K_CRATE; vpyp_set_material(id, 40, 150); s_dented[id] = 0; s_hits[id] = 0; s_nmarks[id] = 0; }
     return id;
 }
 static int add_ball(int32_t x, int32_t y, int32_t z)
@@ -252,6 +265,58 @@ static void dent(int id, int32_t px, int32_t py, int32_t pz,
     vpy3d_mesh_dent(&s_own[id], mx, my, mz, ux, uy, uz, depth, DENT_R);
 }
 
+/* Remember where a shot hit crate `id`, in the crate's own space. */
+static void add_mark(int id, int32_t px, int32_t py, int32_t pz, int32_t nx, int32_t ny, int32_t nz)
+{
+    if (s_nmarks[id] >= MARKS) return;
+    int32_t x, y, z; vpyp_position(id, &x, &y, &z);
+    vpy_xf at = vpy3d_translate(x, y, z);
+    vpyp_rotation(id, at.m);
+    int32_t m[3], n[3];
+    vpy3d_world_to_model(&at, px, py, pz, &m[0], &m[1], &m[2]);
+    vpy_xf turn = at; turn.t[0] = turn.t[1] = turn.t[2] = 0;
+    vpy3d_world_to_model(&turn, nx, ny, nz, &n[0], &n[1], &n[2]);
+    for (int k = 0; k < 3; k++) { s_mark[id][s_nmarks[id]].p[k] = (int16_t)m[k]; s_mark[id][s_nmarks[id]].n[k] = (int16_t)n[k]; }
+    s_nmarks[id]++;
+}
+
+/* The marks on crate `id`, placed `at`: a ring round each, in the face's plane,
+ * a hair out from it, only on faces turned to the camera. */
+#define MARK_SEG 6
+static void draw_marks(int id, const vpy_xf *at)
+{
+    int32_t eye[3]; vpy3d_eye(eye);
+    for (int k = 0; k < s_nmarks[id]; k++) {
+        int32_t c[3], n[3];
+        for (int r = 0; r < 3; r++) {
+            const int64_t mp = (int64_t)at->m[r*3] * s_mark[id][k].p[0] + (int64_t)at->m[r*3+1] * s_mark[id][k].p[1] + (int64_t)at->m[r*3+2] * s_mark[id][k].p[2];
+            const int64_t mn = (int64_t)at->m[r*3] * s_mark[id][k].n[0] + (int64_t)at->m[r*3+1] * s_mark[id][k].n[1] + (int64_t)at->m[r*3+2] * s_mark[id][k].n[2];
+            c[r] = at->t[r] + (int32_t)(mp >> 14);
+            n[r] = (int32_t)(mn >> 14);
+        }
+        const int64_t facing = (int64_t)n[0] * (eye[0] - c[0]) + (int64_t)n[1] * (eye[1] - c[1]) + (int64_t)n[2] * (eye[2] - c[2]);
+        if (facing <= 0) continue;
+        /* two directions across the face: from the axis least along n */
+        const int32_t a0 = n[0] < 0 ? -n[0] : n[0], a1 = n[1] < 0 ? -n[1] : n[1], a2 = n[2] < 0 ? -n[2] : n[2];
+        const int ax = a0 < a1 ? (a0 < a2 ? 0 : 2) : (a1 < a2 ? 1 : 2);
+        int64_t e[3] = { 0, 0, 0 }; e[ax] = 16384;
+        int64_t u[3] = { n[1] * e[2] - n[2] * e[1], n[2] * e[0] - n[0] * e[2], n[0] * e[1] - n[1] * e[0] };
+        const int64_t ul = isqrt64(u[0] * u[0] + u[1] * u[1] + u[2] * u[2]);
+        for (int r = 0; r < 3; r++) u[r] = ul ? u[r] * 16384 / ul : 0;
+        const int64_t w[3] = { (n[1] * u[2] - n[2] * u[1]) >> 14, (n[2] * u[0] - n[0] * u[2]) >> 14, (n[0] * u[1] - n[1] * u[0]) >> 14 };
+        int32_t prev[3] = { 0, 0, 0 };
+        for (int sgi = 0; sgi <= MARK_SEG; sgi++) {
+            const int a = sgi * VPY_Q14_TURN / MARK_SEG;
+            const int64_t cs = vpy_cos_q14(a), sn = vpy_sin_q14(a);
+            int32_t q[3];
+            for (int r = 0; r < 3; r++)
+                q[r] = c[r] + (int32_t)((n[r] * 3) >> 14) + (int32_t)((((u[r] * cs + w[r] * sn) >> 14) * MARK_R) >> 14);
+            if (sgi) vpy3d_occl_line(prev[0], prev[1], prev[2], q[0], q[1], q[2], BR_MARK);
+            prev[0] = q[0]; prev[1] = q[1]; prev[2] = q[2];
+        }
+    }
+}
+
 static void shatter(int id, int32_t hx, int32_t hy, int32_t hz)
 {
     int32_t x, y, z, vx, vy, vz;
@@ -287,15 +352,17 @@ static void shoot(void)
          * of it, dents and all, thrown out from where the shot landed. */
         if (++s_hits[id] >= SHOTS_TO_BREAK) { shatter(id, h.x, h.y, h.z); return; }
         dent(id, h.x, h.y, h.z, dx, dy, dz, SHOT_DENT);
+        add_mark(id, h.x, h.y, h.z, h.nx, h.ny, h.nz);
     }
     if (id >= 0) {
         /* the kick along the ray, the same speed whatever the ray's length or
          * the body's mass, AT the point it hit: off-centre, it spins the body */
         const int64_t l = isqrt64((int64_t)dx * dx + (int64_t)dy * dy + (int64_t)dz * dz);
         const int32_t m = s_kind[id] == K_CRATE ? 2 : 1;
-        vpyp_apply_impulse_at(id, (int32_t)((int64_t)dx * SHOT_KICK * m / l),
-                                  (int32_t)((int64_t)dy * SHOT_KICK * m / l) + SHOT_KICK * m / 4,
-                                  (int32_t)((int64_t)dz * SHOT_KICK * m / l),
+        const int32_t kick = s_kind[id] == K_CRATE ? SHOT_KICK / CRATE_NUDGE : SHOT_KICK;
+        vpyp_apply_impulse_at(id, (int32_t)((int64_t)dx * kick * m / l),
+                                  (int32_t)((int64_t)dy * kick * m / l) + kick * m / 4,
+                                  (int32_t)((int64_t)dz * kick * m / l),
                               h.x, h.y, h.z);
     }
 }
@@ -362,6 +429,7 @@ static void draw_body(int id)
                       : s_kind[id] == K_WALL_X ? &s_wall_x : &s_wall_z;
     vpy3d_draw_mesh(m, &at, s_kind[id] >= K_WALL_X ? BR_FLOOR + 20 : BR_SOLID);
     if (s_kind[id] == K_BALL) draw_ring(&at, BR_SOLID - 30);
+    if (s_kind[id] == K_CRATE) draw_marks(id, &at);
     /* AFTER drawing it. A ball hides by the octahedron inside it — a little
      * less than the ball, never more. A crate by its eight corners, worked out
      * here because its mesh has face centres too (fourteen vertices, and the
