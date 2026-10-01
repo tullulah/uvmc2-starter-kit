@@ -127,7 +127,8 @@ Legend: **[ ]** not started · **[x]** done · **[~]** partly done · **(asked)*
   cartridges, with a script that reassembles the passes for the simulator.
 - [ ] **(idea) A built-in diagnostics HUD** on a button combo: dropped, strokes,
   fps, `ramps_clamped`, over any game.
-- [ ] **(idea) Fail the BIOS build if it does not define the SDK's weak hooks.**
+- [x] **(idea) Fail the BIOS build if it does not define the SDK's weak hooks.** *For
+  `uvm2_core1_gap`, the one a BIOS needs: no default under `UVM2_BIOS` (2026-10-01).*
   A renamed hook silently disconnected the menu's music and SD (2026-10-01).
 - [x] **(idea) Mend the six host tools that do not link** *— `tools/uvm2_host_stubs.c` and
   `tools/build_host_tools.sh` (2026-10-01); all eight build.* and build them all from
