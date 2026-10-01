@@ -91,6 +91,12 @@ int  vpy3d_h_half_angle(void), vpy3d_v_half_angle(void);   /* what is on screen,
 void vpy3d_draw_mesh(const vpy_mesh *m,const vpy_xf *place,int br);
 void vpy3d_line_world(int32_t ax,int32_t ay,int32_t az, int32_t bx,int32_t by,int32_t bz,int br);
 
+/* shading: depth, shadows, size */
+int  vpy3d_fog(int br,int32_t x,int32_t y,int32_t z,int32_t full_until,int32_t gone_at);
+int  vpy3d_shadow(const int32_t (*corners)[3],int n,int32_t lx,int32_t ly,int32_t lz,
+                  int32_t floor_y,int br);                    /* hull on the floor */
+int32_t vpy3d_screen_size(int32_t x,int32_t y,int32_t z,int32_t radius);   /* for LOD */
+
 /* dents: an object's own mesh, pushed in where it was hit */
 int  vpy3d_mesh_copy(vpy_mesh *dst,const vpy_mesh *src);       /* again = reset, no pool */
 void vpy3d_mesh_dent(vpy_mesh *m,int32_t px,int32_t py,int32_t pz,

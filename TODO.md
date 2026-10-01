@@ -81,12 +81,12 @@ Legend: **[ ]** not started · **[x]** done · **[~]** partly done · **(asked)*
 
 ## 3D rendering
 
-- [ ] **(idea) Projected shadows.** Project a solid's convex hull onto the floor
+- [x] **(idea) Projected shadows.** *`vpy3d_shadow` (2026-10-01).* Project a solid's convex hull onto the floor
   plane from a light direction and draw it as a dim outline. The hull code exists
   (the occluder); a shadow is one more polygon per object.
-- [ ] **(idea) Level of detail.** Two or three versions of a mesh, picked by
+- [~] **(idea) Level of detail.** *`vpy3d_screen_size` to pick by; the game keeps the meshes.* Two or three versions of a mesh, picked by
   on-screen size, so distant objects cost fewer strokes.
-- [ ] **(idea) Depth cueing in the SDK.** Brightness falling with distance, one
+- [x] **(idea) Depth cueing in the SDK.** *`vpy3d_fog`.* Brightness falling with distance, one
   call, instead of every game computing its own fog (hakaba does it by hand).
 - [ ] **(idea) Hidden-line terrain.** Heightmap landscapes with the floating-horizon
   algorithm: rows drawn front to back, each clipped by the highest line so far. The

@@ -386,6 +386,44 @@ static void draw_body(int id)
     }
 }
 
+/* SHADOWS, for what is in the air only: one resting on the floor hides its own,
+ * and a falling one's shadow is where it is going to land. The light comes
+ * down from the front left. */
+#define LIGHT_X   300
+#define LIGHT_Y (-1000)
+#define LIGHT_Z   200
+#define BR_SHADOW  35
+static void draw_shadows(void)
+{
+    const int keep = vpy_get_priority();
+    vpy_set_priority(VPY_PRI_LOW);           /* a full frame sheds shadows before solids */
+    for (int id = 0; id < VPYP_MAX_BODIES; id++) {
+        if (!vpyp_alive(id) || s_kind[id] >= K_WALL_X) continue;
+        int32_t x, y, z; vpyp_position(id, &x, &y, &z);
+        const int32_t half = s_kind[id] == K_CRATE ? CRATE : BALL;
+        if (y < half + 60) continue;                         /* on the floor, or as good as */
+        int32_t c[8][3]; int n;
+        if (s_kind[id] == K_BALL) {
+            const int32_t r = BALL;
+            const int32_t o[6][3] = { { x - r, y, z }, { x + r, y, z }, { x, y - r, z },
+                                      { x, y + r, z }, { x, y, z - r }, { x, y, z + r } };
+            for (int k = 0; k < 6; k++) { c[k][0] = o[k][0]; c[k][1] = o[k][1]; c[k][2] = o[k][2]; }
+            n = 6;
+        } else {
+            int32_t m[9]; vpyp_rotation(id, m);
+            for (int k = 0; k < 8; k++) {
+                const int32_t l[3] = { (k & 1) ? CRATE : -CRATE, (k & 2) ? CRATE : -CRATE, (k & 4) ? CRATE : -CRATE };
+                const int32_t t[3] = { x, y, z };
+                for (int r = 0; r < 3; r++)
+                    c[k][r] = t[r] + (int32_t)(((int64_t)m[r*3] * l[0] + (int64_t)m[r*3+1] * l[1] + (int64_t)m[r*3+2] * l[2]) >> 14);
+            }
+            n = 8;
+        }
+        vpy3d_shadow((const int32_t (*)[3])c, n, LIGHT_X, LIGHT_Y, LIGHT_Z, 0, BR_SHADOW);
+    }
+    vpy_set_priority(keep);
+}
+
 static void draw_floor(void)
 {
     for (int32_t t = -PIT; t <= PIT; t += PIT / 4) {
@@ -455,6 +493,7 @@ static void loop(void)
     draw_effects();                   /* the aim and the tracer: nearest of all */
     for (int i = 0; i < n; i++) draw_body(order[i]);
     vpyfx_draw(1);                    /* debris and sparks, cut by the solids in front */
+    draw_shadows();                   /* on the floor, so with the floor: after the solids */
     draw_floor();
 
     /* readout */
