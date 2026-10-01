@@ -80,6 +80,9 @@ Sizes are rounded; they tell you whether a file is a glance or a session.
 | `vpy-c/include/vpycam.h`, `vpy-c/vpycam.c` | 60+90 | A camera that follows (dead zone, lead, no creep), shakes and holds time on a hit. |
 | `vpy-c/include/vpyease.h`, `vpy-c/vpyease.c` | 50+90 | Easing curves and tweens in Q14, exact at both ends. |
 | `vpy-c/tools/motion_check.c` | 110 | The camera and the curves against what they promise. |
+| `vpy-c/include/vpyrope.h`, `vpy-c/vpyrope.c` | 80+190 | Ropes and chains: Verlet points, links, pins, a floor. |
+| `vpy-c/include/vpyreplay.h`, `vpy-c/vpyreplay.c` | 55+60 | Record the input, play it back; with a seed, the whole game repeats. |
+| `vpy-c/tools/rope_check.c`, `replay_check.c` | 100+80 | A rope's hang and a pendulum's period; a replay that repeats physics exactly. |
 | `vpy-c/tools/aspect_check.c` | 70 | Host witness for the lens: a world square must project square (w/h 1.000), and each half angle must follow its own axis's clip. |
 | `pitrex-sim/include/vectrex/vectrexInterface.h` | 75 | **The backend-neutral contract.** 20 declarations; the most important file in the kit per byte. |
 | `pitrex-sim/sdk_host.c` | — | The host/WASM implementation of that contract. |

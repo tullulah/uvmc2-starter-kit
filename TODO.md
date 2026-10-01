@@ -33,7 +33,8 @@ Legend: **[ ]** not started · **[x]** done · **[~]** partly done · **(asked)*
   effects below can use them.
 - [x] **(idea) Ray casts.** *`vpyp_raycast`; vs mesh still to do.* Ray vs sphere, box and mesh, returning the hit point,
   normal and face. Shots, line of sight, the lightgun (`examples/lightgun_test`).
-- [ ] **(idea) Constraints: ropes, chains, hinges.** Verlet points joined by
+- [~] **(idea) Constraints: ropes, chains, hinges.** *Ropes and chains in `vpyrope`
+  (2026-10-01); hinges between physics bodies not done.* Verlet points joined by
   distance constraints. A rope is a polyline, which is the cheapest thing a vector
   display can draw: a 12-link chain is 12 chained strokes.
 
@@ -106,7 +107,7 @@ Legend: **[ ]** not started · **[x]** done · **[~]** partly done · **(asked)*
 - [x] **(idea) A camera system.** *`vpycam`: follow with dead zone and lead, shake, hit-stop;
   scripted paths not done.* Follow with look-ahead, dead zones, shake,
   scripted paths — hakaba's camera, made general.
-- [ ] **(idea) Deterministic replay.** Record inputs and a seed, play back
+- [x] **(idea) Deterministic replay.** *`vpyreplay` (2026-10-01).* Record inputs and a seed, play back
   frame-exact (kuroishi has one); the base for attract modes and ghost runs.
 
 ## Audio

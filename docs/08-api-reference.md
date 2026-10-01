@@ -293,6 +293,24 @@ moves a unit a frame re-zeroes the beam somewhere new every frame). Every
 easing curve is exactly 0 at the start and exactly 1 at the end.
 `vpy-c/tools/motion_check.c` holds both to that.
 
+### Ropes and replays — `vpyrope.h`, `vpyreplay.h`
+
+```c
+int  vpyrope_new(int32_t ax,int32_t ay,int32_t az, int32_t bx,int32_t by,int32_t bz, int links);
+void vpyrope_pin(int rope,int i,int32_t x,int32_t y,int32_t z);   /* every frame, to move it */
+void vpyrope_step(void);   void vpyrope_draw(int rope,int br,int occlude);
+
+void vpyreplay_record(vpyreplay_frame *buf,int capacity,uint32_t seed);
+void vpyreplay_play(const vpyreplay_frame *buf,int frames,uint32_t seed);
+void vpyreplay_input(uint8_t *buttons,int8_t *jx,int8_t *jy);   /* once a frame, before reading input */
+```
+
+A rope is Verlet points held to their link length, with pins the game moves; it
+draws as one chained polyline, and `vpyrope_stats()->stretch` says how far the
+worst link was pulled. A replay is three bytes of input a frame and a seed —
+enough, because everything that moves in libvpy is deterministic
+(`tools/replay_check.c` plays 500 frames of physics back exactly).
+
 ### Compiled assets
 
 ```c
