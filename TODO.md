@@ -39,12 +39,14 @@ Legend: **[ ]** not started · **[x]** done · **[~]** partly done · **(asked)*
 
 ## Impact and destruction
 
-- [ ] **(asked) Deformation on impact.** A hit pushes a mesh's vertices in along
+- [x] **(asked) Deformation on impact.** *`vpy3d_mesh_copy` + `vpy3d_mesh_dent` (2026-10-01);
+  in `physics_demo`, hard contacts dent crates.* A hit pushes a mesh's vertices in along
   the impact direction with a falloff from the contact point, and the dent stays.
   Per-instance vertex offsets over a shared mesh, so a hundred identical crates do
   not need a hundred meshes. Costs no strokes: the same edges, displaced. Needs the
   face normals rebuilt after a dent so hidden-line removal stays right.
-- [ ] **(asked) Shots that mark what they hit.** Ray cast + deformation: a dent, a
+- [~] **(asked) Shots that mark what they hit.** *A dent where a shot lands, in
+  `physics_demo`; scorch rings and holes not done.* Ray cast + deformation: a dent, a
   scorch ring drawn on the face, or a hole (the face's outline split around it).
 - [x] **(idea) Shatter.** *`vpyfx_shatter` (2026-10-01): every edge a spinning stick.* At a strong enough impact the mesh breaks into pieces:
   each piece a small convex mesh, or simply each EDGE becomes a spinning stick with
@@ -138,5 +140,5 @@ Legend: **[ ]** not started · **[x]** done · **[~]** partly done · **(asked)*
 1. ~~**Collision + rigid bodies with gravity**~~ — done (`vpyphys`), rotation included.
    What is left of it: edge-against-edge for boxes, convex hulls beyond boxes.
 2. ~~**Particles with a stroke budget**, then **shatter**~~ — done (`vpyfx`).
-3. **Deformation on impact** and **shots that mark what they hit**.
+3. ~~**Deformation on impact**~~ — done; **shots that mark** done as dents.
 4. **The entity layer**, once there are enough systems to tie together.

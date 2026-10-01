@@ -91,6 +91,13 @@ int  vpy3d_h_half_angle(void), vpy3d_v_half_angle(void);   /* what is on screen,
 void vpy3d_draw_mesh(const vpy_mesh *m,const vpy_xf *place,int br);
 void vpy3d_line_world(int32_t ax,int32_t ay,int32_t az, int32_t bx,int32_t by,int32_t bz,int br);
 
+/* dents: an object's own mesh, pushed in where it was hit */
+int  vpy3d_mesh_copy(vpy_mesh *dst,const vpy_mesh *src);       /* again = reset, no pool */
+void vpy3d_mesh_dent(vpy_mesh *m,int32_t px,int32_t py,int32_t pz,
+                     int32_t dx,int32_t dy,int32_t dz,int32_t depth,int32_t radius);
+void vpy3d_world_to_model(const vpy_xf *place,int32_t wx,int32_t wy,int32_t wz,
+                          int32_t *mx,int32_t *my,int32_t *mz);
+
 /* one solid hiding another */
 void vpy3d_occl_reset(void);                                   /* once a frame */
 int  vpy3d_occl_add(const int32_t (*corners)[3],int n);        /* 3..8 world corners */
@@ -117,6 +124,15 @@ on one console's evidence — photograph the card on a second one first.
 `vpy-c/tools/aspect_check.c` is the host witness: a world square projects with
 w/h = 1.000, and each half angle follows its own axis's clip. Read the field of
 view with `vpy3d_h/v_half_angle` rather than writing "58 degrees" a second time.
+
+**Dents.** A mesh is shared by everything drawn with it, so an object that can
+be dented takes its own copy first (`vpy3d_mesh_copy`); copying again into it
+resets it without using more pool, which is how a game recycles objects.
+`vpy3d_mesh_dent` pushes the vertices near a point in and works the creases out
+again, so a flat face shows the fold — but a face only bends where it has
+vertices: give a dentable box a vertex in the middle of each face (it still
+draws like a plain box). Dents are drawing only; a physics body keeps its
+shape. `vpy-c/tools/dent_check.c` holds it to that.
 
 **Occlusion between solids is the caller's job, done with a silhouette.** Hidden
 lines are removed within a mesh, never between two: with no depth buffer, a

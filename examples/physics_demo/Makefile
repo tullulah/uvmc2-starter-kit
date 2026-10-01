@@ -30,7 +30,14 @@ UVM2_OBJCOPY = arm-none-eabi-objcopy
 # libvpy (levels, enemies, animation) out of a 496 KB image.
 UVM2_CFLAGS  = -mthumb -mcpu=cortex-m33 -mfloat-abi=soft -ffreestanding -O2 -std=gnu11 \
                -ffunction-sections -fdata-sections -DVPY_RP2350 \
-               -Isrc -I$(VPY_C_SDK)/include -I$(PITREX_INC) -I$(UVM2_SDK)
+               -Isrc -I$(VPY_C_SDK)/include -I$(PITREX_INC) -I$(UVM2_SDK) \
+               $(DENT_POOLS)
+
+# vpy3d's pools, raised so every body slot can hold its own dented crate: a
+# crate with face centres is 14 vertices, 24 faces, 72 face entries and 36
+# edges, times 48 slots, plus the shared meshes. vpy3d_stats() reports the
+# high-water marks, so these can be checked rather than trusted.
+DENT_POOLS = -DVPY3D_POOL_V=768 -DVPY3D_POOL_F=1280 -DVPY3D_POOL_FV=4096 -DVPY3D_POOL_E=2048
 
 # THE TWO SWITCHES THAT MATTER, and they are both on by default in uvm2.mk:
 #

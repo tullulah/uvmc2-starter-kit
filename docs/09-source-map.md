@@ -75,6 +75,7 @@ Sizes are rounded; they tell you whether a file is a glance or a session.
 | `vpy-c/include/vpyfx.h`, `vpy-c/vpyfx.c` | 95+325 | **Sparks, bursts and shattering**, one stroke per piece, within a stroke budget at the lowest priority. |
 | `vpy-c/tools/fx_check.c` | 130 | The effects against their header; exit status = failures. |
 | `vpy-c/tools/phys_check.c` | 140 | The physics against formulas and behaviours; exit status = failures. |
+| `vpy-c/tools/dent_check.c` | 110 | Mesh copies and dents: undented draws like a plain box, dented shows the fold, recycling uses no pool. |
 | `vpy-c/tools/aspect_check.c` | 70 | Host witness for the lens: a world square must project square (w/h 1.000), and each half angle must follow its own axis's clip. |
 | `pitrex-sim/include/vectrex/vectrexInterface.h` | 75 | **The backend-neutral contract.** 20 declarations; the most important file in the kit per byte. |
 | `pitrex-sim/sdk_host.c` | — | The host/WASM implementation of that contract. |
@@ -125,7 +126,7 @@ Only what `game/tacscan` needs is here (~52 files). Other AAE games need more.
 
 | dir | what it is |
 |---|---|
-| `physics_demo` | Crates and balls under gravity in a pit: drop them, shoot them; a shot crate shatters and its blast scatters the rest, every hard contact throws sparks. vpyphys + vpyfx + vpy3d with mesh occlusion. |
+| `physics_demo` | Crates and balls under gravity in a pit: drop them, shoot them. Hard knocks and shots dent crates, the third shot shatters one and its blast scatters the rest, every hard contact throws sparks. vpyphys + vpyfx + vpy3d with mesh occlusion and dents. |
 | `occlusion_demo` | Three turning meshes, one swinging through the others, with occlusion on and off. |
 | `geometry_card` | A test card to photograph: is a unit the same size in x and y, and where does the glass end. |
 
