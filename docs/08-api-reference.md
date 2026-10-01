@@ -169,6 +169,44 @@ move") and moved into the SDK when hakaba needed the same thing.
 meshes and a floor, drawn near to far, with button 1 switching the occluder off
 to compare.
 
+### Physics — `vpyphys.h`
+
+Rigid bodies under gravity, collisions between them, and a ray cast. Integer
+only and **deterministic**: the same calls give the same positions on every
+target, bit for bit, so replays and host harnesses hold. It draws nothing; the
+game reads positions back and draws them (with vpy3d meshes, or in 2D with z = 0).
+Add `$(VPY_C_SDK)/vpyphys.c` to `UVM2_SRCS`.
+
+```c
+void vpyp_reset(void);
+void vpyp_set_gravity(int32_t gx,int32_t gy,int32_t gz);     /* units/s²: 9800 mm/s² */
+void vpyp_set_floor(int on,int32_t y,int restitution_q8,int friction_q8);
+int  vpyp_add_sphere(int32_t x,int32_t y,int32_t z,int32_t r,int32_t mass);     /* mass 0 = static */
+int  vpyp_add_box(int32_t x,int32_t y,int32_t z,int32_t hx,int32_t hy,int32_t hz,int32_t mass);
+void vpyp_set_material(int id,int restitution_q8,int friction_q8);
+void vpyp_set_mask(int id,uint8_t mask);                     /* who collides with whom */
+void vpyp_set_velocity(int id,int32_t vx,int32_t vy,int32_t vz);
+void vpyp_apply_impulse(int id,int32_t ix,int32_t iy,int32_t iz);
+void vpyp_step(void);                                        /* once per frame at 50 Hz */
+void vpyp_position(int id,int32_t *x,int32_t *y,int32_t *z);
+int  vpyp_contact_count(void);  const vpyp_contact *vpyp_contact_get(int i);   /* .impulse: how hard */
+int  vpyp_raycast(int32_t ox,int32_t oy,int32_t oz, int32_t dx,int32_t dy,int32_t dz,
+                  int32_t max_dist,uint8_t mask,vpyp_hit *out);
+const vpyp_stats_t *vpyp_stats(void);                        /* awake, contacts, refused */
+```
+
+Spheres and axis-aligned boxes, a floor, restitution, friction, sleeping
+bodies (a pile at rest costs almost nothing) and a contact list with the
+impulse of each hit — what a dent, a spark or an impact sound reads. **Boxes do
+not rotate yet.** The solver is sequential impulses with warm starting and
+speculative contacts, so a stack holds and a fast body does not tunnel through
+a thin wall. `vpy-c/tools/phys_check.c` checks it against formulas (free fall,
+braking distance, momentum) and behaviours; its numbers are in the header.
+
+A full table is a limit the game handles: compare `vpyp_stats()->bodies` with
+`VPYP_MAX_BODIES` (64) before adding, as `examples/physics_demo` does. A refusal
+is counted either way.
+
 ### Compiled assets
 
 ```c

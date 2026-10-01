@@ -15,21 +15,23 @@ The constraints every entry is written against:
 * **Deterministic.** Replays and the host harness depend on the same inputs giving
   the same frame. No wall-clock time in simulation; one seeded PRNG.
 
-Legend: **[ ]** not started · **(asked)** requested · **(idea)** proposed.
+Legend: **[ ]** not started · **[x]** done · **[~]** partly done · **(asked)** requested · **(idea)** proposed.
 
 ---
 
 ## Physics
 
-- [ ] **(asked) Rigid bodies with real gravity.** Position, velocity, mass,
+- [~] **(asked) Rigid bodies with real gravity.** *Done in `vpyphys` (2026-10-01) except
+  rotation: boxes stay axis-aligned.* Position, velocity, mass,
   restitution, friction, in Q16, stepped at a fixed rate (semi-implicit Euler).
   Resting contact and "sleep" so a pile of boxes stops costing CPU. 2D first,
   then 3D on vpy3d transforms. Costs no strokes; CPU only.
-- [ ] **(asked) Collision detection.** Sphere and AABB first; convex-vs-convex
+- [~] **(asked) Collision detection.** *Sphere and AABB done in `vpyphys`; convex-vs-convex
+  (SAT) still to do.* Sphere and AABB first; convex-vs-convex
   (SAT) next, reusing the convex hulls the occluder already builds. A uniform grid
   as the broad phase. Contact points and normals out, so the physics and the
   effects below can use them.
-- [ ] **(idea) Ray casts.** Ray vs sphere, box and mesh, returning the hit point,
+- [x] **(idea) Ray casts.** *`vpyp_raycast`; vs mesh still to do.* Ray vs sphere, box and mesh, returning the hit point,
   normal and face. Shots, line of sight, the lightgun (`examples/lightgun_test`).
 - [ ] **(idea) Constraints: ropes, chains, hinges.** Verlet points joined by
   distance constraints. A rope is a polyline, which is the cheapest thing a vector
@@ -132,8 +134,8 @@ Legend: **[ ]** not started · **(asked)** requested · **(idea)** proposed.
 
 ## A suggested order
 
-1. **Collision + rigid bodies with gravity** — everything in "Impact" builds on
-   contacts and velocities.
+1. ~~**Collision + rigid bodies with gravity**~~ — done (`vpyphys`); **rotation**
+   is what is left of it, and boxes that tumble are what shatter will want.
 2. **Particles with a stroke budget**, then **shatter** — the most visible payoff,
    and the budget rules get settled once.
 3. **Deformation on impact** and **shots that mark what they hit**.

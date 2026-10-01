@@ -71,6 +71,8 @@ Sizes are rounded; they tell you whether a file is a glance or a session.
 | `vpy-c/include/vpy.h` | 160 | The game library's API, with the asset formats described per group. |
 | `vpy-c/vpy.c` | 1700 | Its implementation: shapes, `.vec`/`.vanim` readers, text, math, the level and enemy runtimes, and the **stroke buffer** every drawing call goes through (flushed once per frame). |
 | `vpy-c/include/vpy3d.h`, `vpy-c/vpy3d.c` | 315+915 | A small 3D layer in C (meshes, camera, projection, a per-axis window), drawing through the stroke buffer, plus the **screen-space occluder** that lets one solid hide another. The header's occlusion block is the manual. |
+| `vpy-c/include/vpyphys.h`, `vpy-c/vpyphys.c` | 165+695 | **Rigid bodies, gravity, collisions, ray casts.** Integer, deterministic. The header says what is measured and what is not there yet (rotation). |
+| `vpy-c/tools/phys_check.c` | 140 | The physics against formulas and behaviours; exit status = failures. |
 | `vpy-c/tools/aspect_check.c` | 70 | Host witness for the lens: a world square must project square (w/h 1.000), and each half angle must follow its own axis's clip. |
 | `pitrex-sim/include/vectrex/vectrexInterface.h` | 75 | **The backend-neutral contract.** 20 declarations; the most important file in the kit per byte. |
 | `pitrex-sim/sdk_host.c` | — | The host/WASM implementation of that contract. |
@@ -116,6 +118,14 @@ Only what `game/tacscan` needs is here (~52 files). Other AAE games need more.
 | `tools/host_test.c`, `mz80_prof.c` | 200 | The desktop harness and the Z80 opcode profile. |
 | `tools/wav_to_vsmp.py`, `audio2vsmp.py` | 350 | `samples/*.wav` → `build/tacscan.vsm`. |
 | `roms/`, `samples/` | — | The romset and the 22 source sounds. |
+
+## `examples/physics_demo/`, `examples/occlusion_demo/`, `examples/geometry_card/`
+
+| dir | what it is |
+|---|---|
+| `physics_demo` | Crates and balls under gravity in a pit: drop them, shoot them, watch the sparks at each hard contact. vpyphys + vpy3d with mesh occlusion. |
+| `occlusion_demo` | Three turning meshes, one swinging through the others, with occlusion on and off. |
+| `geometry_card` | A test card to photograph: is a unit the same size in x and y, and where does the glass end. |
 
 ## `examples/hello_uvmc2/`
 
