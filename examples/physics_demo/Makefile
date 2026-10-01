@@ -20,7 +20,7 @@ VPY_C_SDK   ?= $(UVMC2_KIT)/sdk/vpy-c
 PITREX_INC  ?= $(UVMC2_KIT)/sdk/pitrex-sim/include
 
 UVM2_NAME    = physics_demo
-UVM2_SRCS    = src/main.c $(VPY_C_SDK)/vpy.c $(VPY_C_SDK)/vpy3d.c $(VPY_C_SDK)/vpyphys.c $(VPY_C_SDK)/vpyfx.c $(VPY_C_SDK)/vpycam.c
+UVM2_SRCS    = src/main.c $(VPY_C_SDK)/vpy.c $(VPY_C_SDK)/vpy3d.c $(VPY_C_SDK)/vpyphys.c $(VPY_C_SDK)/vpyfx.c $(VPY_C_SDK)/vpycam.c $(VPY_C_SDK)/vpyimpact.c
 UVM2_CC      = arm-none-eabi-gcc
 UVM2_CXX     = arm-none-eabi-gcc
 UVM2_OBJCOPY = arm-none-eabi-objcopy

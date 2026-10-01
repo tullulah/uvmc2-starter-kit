@@ -117,8 +117,11 @@ Legend: **[ ]** not started · **[x]** done · **[~]** partly done · **(asked)*
 ## Audio
 
 - [ ] **(idea) Positional sound.** Pan on the stereo jack by screen position,
-  volume by distance, a pitch shift for approaching objects.
-- [ ] **(idea) Impact sounds from physics.** Contact speed drives the volume and
+  volume by distance, a pitch shift for approaching objects. *The pan needs the
+  UVMC2's jack (`uvm2_jack.c`); the debug cartridge has none.*
+- [x] **(idea) Impact sounds from physics.** *`vpyimpact` (2026-10-02): synthesised on
+  the PSG, no samples; volume from the impulse, voice from the material. Heard on one
+  console's speaker; the voices are starting values.* Contact speed drives the volume and
   choice of sample, so a falling crate sounds as hard as it lands.
 
 ## Tooling (so the above can be debugged)

@@ -75,6 +75,7 @@ Sizes are rounded; they tell you whether a file is a glance or a session.
 | `vpy-c/include/vpy3d.h`, `vpy-c/vpy3d.c` | 450+1390 | A small 3D layer in C (meshes, camera, projection, a per-axis window), drawing through the stroke buffer, plus the **screen-space occluder** that lets one solid hide another, dents, marks where shots landed, a ray against a mesh, and level of detail. The header's occlusion block is the manual. |
 | `vpy-c/include/vpyphys.h`, `vpy-c/vpyphys.c` | 285+2000 | **Rigid bodies, gravity, collisions, ray casts, joints.** Spheres, boxes and convex hulls; ball joints and hinges. Integer, deterministic. The header says what is measured. |
 | `vpy-c/include/vpyfx.h`, `vpy-c/vpyfx.c` | 95+325 | **Sparks, bursts and shattering**, one stroke per piece, within a stroke budget at the lowest priority. |
+| `vpy-c/include/vpyimpact.h`, `vpy-c/vpyimpact.c` | 75+150 | **Impact sounds**, synthesised on the PSG from the contact's impulse and the bodies' materials; `tools/impact_check.c` checks it. |
 | `vpy-c/tools/fx_check.c` | 130 | The effects against their header; exit status = failures. |
 | `vpy-c/tools/phys_check.c` | 400 | The physics against formulas and behaviours — hulls and joints included; exit status = failures. |
 | `vpy-c/tools/mesh_check.c` | 160 | A ray against a mesh (turned, moved, dented), marks, and the LOD pick. |
@@ -141,7 +142,7 @@ Only what `game/tacscan` needs is here (~52 files). Other AAE games need more.
 
 | dir | what it is |
 |---|---|
-| `physics_demo` | Crates and balls under gravity in a pit: drop them, shoot them. Hard knocks and shots dent crates, the third shot shatters one and its blast scatters the rest, every hard contact throws sparks, and a shot leaves a mark on what it hits. A door on a hinge, and pyramids and wedges as convex hulls (button 3 drops crate, pyramid, wedge in turn). vpyphys + vpyfx + vpy3d with mesh occlusion, dents and marks. |
+| `physics_demo` | Crates and balls under gravity in a pit: drop them, shoot them. Hard knocks and shots dent crates, the third shot shatters one and its blast scatters the rest, every hard contact throws sparks, and a shot leaves a mark on what it hits; hits sound (vpyimpact). A door on a hinge, and pyramids and wedges as convex hulls (button 3 drops crate, pyramid, wedge in turn). vpyphys + vpyfx + vpy3d with mesh occlusion, dents and marks. |
 | `occlusion_demo` | Three turning meshes, one swinging through the others, with occlusion on and off. |
 | `geometry_card` | A test card to photograph: is a unit the same size in x and y, and where does the glass end. |
 

@@ -38,12 +38,17 @@
  * same corners and faces their meshes are built from: they land on a face,
  * stack, and slide off each other's slopes. Shots mark the door and the pieces
  * too, but only crates dent and break.
+ *
+ * HITS SOUND (vpyimpact): the loudest contact of each step is synthesised on
+ * the PSG, as loud as its impulse — wood for the crates, the pieces and the
+ * door, a soft bump for the balls — and a shattering crate is a full crash.
  */
 #include <vpy.h>
 #include <vpy3d.h>
 #include <vpyphys.h>
 #include <vpyfx.h>
 #include <vpycam.h>
+#include <vpyimpact.h>
 #ifndef VPY_DUAL_CORE
 #include <uvm2_bus.h>   /* the .um2: the SDK is in the image */
 #endif
@@ -91,6 +96,12 @@
 #define DOOR_GAP       20
 #define DOOR_LIFT      30     /* its bottom edge this far off the floor: no floor friction */
 
+/* THE IMPACT SOUND'S RANGE (vpyimpact, mass × mm/s). Under QUIET a contact is
+ * silent: a crate of mass 2 resting reports ~400 a step. LOUD is a crate dropped
+ * from the top of the screen (1600 mm). Starting values, not yet tuned by ear. */
+#define IMPACT_QUIET  1500
+#define IMPACT_LOUD  12000
+
 #define BR_SOLID      110
 #define BR_FLOOR       40
 #define BR_AIM         90
@@ -110,6 +121,7 @@ static vpy3d_marks s_marks[VPYP_MAX_BODIES];
 
 enum { K_CRATE, K_BALL, K_PYR, K_WEDGE, K_DOOR, K_WALL_X, K_WALL_Z };
 static uint8_t s_kind[VPYP_MAX_BODIES];
+static uint8_t s_mat[VPYP_MAX_BODIES];      /* what each body sounds like (vpyimpact) */
 static int s_dropped[VPYP_MAX_BODIES], s_ndropped;   /* oldest first */
 
 static int32_t s_aim_x, s_aim_z;
@@ -218,19 +230,19 @@ static void build_ball(vpy_mesh *m, int r)
 static int add_crate(int32_t x, int32_t y, int32_t z)
 {
     const int id = vpyp_add_box(x, y, z, CRATE, CRATE, CRATE, 2);
-    if (id >= 0) { s_kind[id] = K_CRATE; vpyp_set_material(id, 40, 150); s_dented[id] = 0; s_hits[id] = 0; vpy3d_marks_clear(&s_marks[id]); }
+    if (id >= 0) { s_kind[id] = K_CRATE; s_mat[id] = VPYI_WOOD; vpyp_set_material(id, 40, 150); s_dented[id] = 0; s_hits[id] = 0; vpy3d_marks_clear(&s_marks[id]); }
     return id;
 }
 static int add_piece(int kind, int32_t x, int32_t y, int32_t z)
 {
     const int id = vpyp_add_hull(x, y, z, kind == K_PYR ? s_pyr_shape : s_wedge_shape, 2);
-    if (id >= 0) { s_kind[id] = (uint8_t)kind; vpyp_set_material(id, 40, 150); vpy3d_marks_clear(&s_marks[id]); }
+    if (id >= 0) { s_kind[id] = (uint8_t)kind; s_mat[id] = VPYI_WOOD; vpyp_set_material(id, 40, 150); vpy3d_marks_clear(&s_marks[id]); }
     return id;
 }
 static int add_ball(int32_t x, int32_t y, int32_t z)
 {
     const int id = vpyp_add_sphere(x, y, z, BALL, 1);
-    if (id >= 0) { s_kind[id] = K_BALL; vpyp_set_material(id, 150, 90); }
+    if (id >= 0) { s_kind[id] = K_BALL; s_mat[id] = VPYI_SOFT; vpyp_set_material(id, 150, 90); }
     return id;
 }
 
@@ -241,6 +253,9 @@ static void setup_world(void)
     vpyp_set_floor(1, 0, 60, 160);
     /* four low walls, static */
     int w;
+    for (int i = 0; i < VPYP_MAX_BODIES; i++) s_mat[i] = VPYI_NONE;   /* the walls: what hits them decides */
+    vpyimpact_reset();
+    vpyimpact_set_range(IMPACT_QUIET, IMPACT_LOUD);
     w = vpyp_add_box(0, WALL_H, PIT + WALL_T, PIT + WALL_T, WALL_H, WALL_T, 0);  s_kind[w] = K_WALL_X;
     w = vpyp_add_box(0, WALL_H, -PIT - WALL_T, PIT + WALL_T, WALL_H, WALL_T, 0); s_kind[w] = K_WALL_X;
     w = vpyp_add_box(PIT + WALL_T, WALL_H, 0, WALL_T, WALL_H, PIT, 0);           s_kind[w] = K_WALL_Z;
@@ -252,7 +267,7 @@ static void setup_world(void)
     /* the door, hinged to the world at its left edge, about the vertical */
     const int door = vpyp_add_box(-PIT + DOOR_GAP + DOOR_HX, DOOR_LIFT + DOOR_HY, DOOR_Z, DOOR_HX, DOOR_HY, DOOR_HZ, 4);
     if (door >= 0) {
-        s_kind[door] = K_DOOR; vpyp_set_material(door, 40, 120); vpy3d_marks_clear(&s_marks[door]);
+        s_kind[door] = K_DOOR; s_mat[door] = VPYI_WOOD; vpyp_set_material(door, 40, 120); vpy3d_marks_clear(&s_marks[door]);
         vpyp_hinge(door, VPYP_NONE, -PIT + DOOR_GAP, DOOR_LIFT + DOOR_HY, DOOR_Z, 0, 1, 0);
     }
     /* a pyramid of crates, three, two, one, with a small gap so it settles */
@@ -355,6 +370,7 @@ static void shatter(int id, int32_t hx, int32_t hy, int32_t hz)
     vpyp_rotation(id, at.m);
     vpyfx_shatter(crate_mesh(id), &at, vx, vy, vz, hx, hy, hz, 2200, 3000, 150, 120);
     vpyp_remove(id);
+    vpyimpact_hit(IMPACT_LOUD, VPYI_WOOD);     /* the crash: full, whatever is ringing */
     blast(hx, hy, hz);
     vpycam_shake(60, 18);      /* the camera feels it */
     vpycam_hitstop(3);         /* and time holds for three frames, so the hit lands */
@@ -589,8 +605,10 @@ static void loop(void)
 
     /* physics: one step per frame, except while a hit-stop holds time */
     vpycam_step();
+    vpyimpact_step();
     if (!vpycam_stopped()) {
         vpyp_step();
+        vpyimpact_contacts(s_mat, VPYI_NONE);   /* the floor is silent: what lands on it decides */
         sparks_from_contacts();
         vpyfx_step();
     }

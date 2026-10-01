@@ -287,6 +287,31 @@ A full table is a limit the game handles: compare `vpyp_stats()->bodies` with
 `VPYP_MAX_BODIES` (64) before adding, as `examples/physics_demo` does. A refusal
 is counted either way.
 
+### Impact sounds — `vpyimpact.h`
+
+The sound of things hitting each other, synthesised on the PSG from the hit — no
+samples. Each impact is a short envelope of noise and a falling tone, played
+through libvpy's own SFX player on channel C, so it shares the PSG with music like
+any other effect. Add `$(VPY_C_SDK)/vpyimpact.c` to `UVM2_SRCS`.
+
+```c
+enum { VPYI_SOFT, VPYI_WOOD, VPYI_METAL, VPYI_NONE = 255 };
+void vpyimpact_set_range(int32_t quiet,int32_t loud);   /* impulses: silent below, full from */
+int  vpyimpact_hit(int32_t impulse,int material);       /* one hit; 1 if it sounds */
+int  vpyimpact_contacts(const uint8_t *material_of,int floor_material);  /* after vpyp_step */
+void vpyimpact_step(void);                               /* once per frame */
+const vpyimpact_stats_t *vpyimpact_stats(void);          /* played, skipped, quiet */
+```
+
+The volume follows the contact's impulse (square-root shaped, so a middling knock
+is still heard); a resting body reports a little every step and stays under
+`quiet`. A material per body decides the voice — wood knocks, soft bumps, metal
+rings — and when two meet, the one that rings more decides. One channel, so a hit
+replaces the one playing only if it is at least as loud as what that one has
+left; the rest are counted as skipped. `vpy-c/tools/impact_check.c` checks it
+through the real SFX player. The voices are starting values, heard on one
+console's speaker (2026-10-02) and not tuned further.
+
 ### Effects — `vpyfx.h`
 
 Sparks and debris, one stroke per piece. A **spark** is a point drawn as a
