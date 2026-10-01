@@ -164,6 +164,21 @@ cc -O2 -DUVM2_HOST -DUVM2_BENCH_NO_CORE1 -DUVM2_SUBUNITS -DUVM2_CMD_CAPACITY=655
 | `uvm2_ramp_cost.c`, `uvm2_gapped_budget.c`, `uvm2_budget.c` | Ramp and frame-budget models. |
 | `uvm2_smp_test.c` | Sample injection coverage against scene complexity. |
 | `smp_stats.py` | Reads the mixer histograms `-DUVM2_SMP_TELEM=1` produces. |
+| `list_from_rtt.py` | The command list **the console actually ran**, from the debug cartridge BIOS's RTT dump (`CMD_DUMP`, buttons 1+2 held on a frozen frame). Refuses if the passes disagree. |
+| `beam_sim.py` | Plays a list against an ideal beam and reports what the **list** gets wrong: ramps started with the zero clamp on (must be 0), lit cycles under the clamp, the frame's length; draws what is lit as an SVG. |
+
+**From the console to an answer, without halting it.** Freeze the frame, hold
+1+2 while `probe-rs attach` (which halts nothing) saves the RTT, then:
+
+```sh
+python3 sdk/uvm2-sdk/tools/list_from_rtt.py rtt.log list.json
+python3 sdk/uvm2-sdk/tools/beam_sim.py list.json lit.svg
+```
+
+That is how the 2026-10-01 "asterisk" was found: the BIOS's own list for the
+frame, replayed, drew the first chain of strokes at the centre with the clamp
+still on — the model is ideal, so a fault it shows is in the list, not in the
+console.
 
 The input for `uvm2_list_count` is lines of `x0 y0 x1 y1 z` in the units the game
 passes to `v_directDraw32`; each port's host harness already dumps that format

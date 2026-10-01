@@ -37,6 +37,7 @@ Sizes are rounded; they tell you whether a file is a glance or a session.
 | `uvm2_bus_stream.h` | 46 | The C face of the Rust bus crate. No implementation here. |
 | `memmap_psram.ld` | 350 | Opt-in: link the whole image into PSRAM. Its comments are the best account of what does and does not belong in external memory. |
 | `tools/*.c`, `tools/*.py` | ~1500 | Host-side measurement tools. Not part of any build. See [07](07-measuring.md). |
+| `tools/list_from_rtt.py`, `tools/beam_sim.py` | 70+150 | The command list the console ran, from an RTT dump, and what it does to an ideal beam. See [07](07-measuring.md). |
 | `tools/uvm2_sd_test.sh` | 110 | `uvm2_sd.c` against real FAT16 / FAT32 / exFAT (MBR and GPT) images, with `fsck -n` after. macOS. |
 | `tools/stats.py`, `probe.sh`, `load.sh`, `release.sh` | 380 | **SWD tools** for a console on the bench: read `uvm2_stats` without halting, the PC of a hang, load an image without the SD card. Which ones halt the core is in [07](07-measuring.md). |
 

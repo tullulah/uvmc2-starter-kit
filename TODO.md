@@ -119,10 +119,11 @@ Legend: **[ ]** not started · **[x]** done · **[~]** partly done · **(asked)*
 
 ## Tooling (so the above can be debugged)
 
-- [ ] **(idea) A beam simulator.** Decode a command list cycle by cycle and render
+- [x] **(idea) A beam simulator.** *`uvm2-sdk/tools/beam_sim.py` (2026-10-01).* Decode a command list cycle by cycle and render
   what is lit to SVG, flagging anomalies (ramps with the clamp on, lit with no
   ramp). Written ad hoc to find the 2026-10-01 asterisk; worth making permanent.
-- [ ] **(idea) An official command-list dump over RTT**, the same on both
+- [~] **(idea) An official command-list dump over RTT** *— the reader is `list_from_rtt.py`; the
+  dump itself is still the debug cartridge BIOS's `CMD_DUMP`, not the UVMC2's.*, the same on both
   cartridges, with a script that reassembles the passes for the simulator.
 - [ ] **(idea) A built-in diagnostics HUD** on a button combo: dropped, strokes,
   fps, `ramps_clamped`, over any game.
