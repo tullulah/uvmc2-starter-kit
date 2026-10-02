@@ -22,7 +22,8 @@
  *
  * THE READOUT: BOD bodies alive, AWK the ones awake (sleeping ones cost almost
  * nothing), CON contacts this step, FX effect pieces in the air, STK strokes,
- * DROP must be 0. When the body
+ * DROP must be 0, JNT the hinge's stretch, and in the .um2 STACK the deepest
+ * core 0's stack has been (bytes, of 4096). When the body
  * table is full the oldest dropped body is recycled; vpyphys counts a refusal
  * either way, so a full table is never silent.
  *
@@ -639,6 +640,12 @@ static void loop(void)
     vpy_print_text(  62, 108, "FX");  vpy_print_number( 78, 108, (long)vpyfx_stats()->alive);
     vpy_print_text(-118, -112, "STK"); vpy_print_number(-96, -112, (long)ds->strokes);
     vpy_print_text(  62, -112, "JNT"); vpy_print_number( 84, -112, (long)ps->joint_stretch);
+#ifndef VPY_DUAL_CORE
+    /* the deepest core 0's stack has been, bytes, of 4096 (uvm2_stats.stack0_peak); "!" if it
+     * ever reached the floor — see docs/02, "Core 0 has 4 KB of stack" */
+    vpy_print_text(-118, -96, "STACK"); vpy_print_number(-82, -96, (long)uvm2_stats.stack0_peak);
+    if (uvm2_stats.stack_overflow) vpy_print_text(-50, -96, "!");
+#endif
     vpy_print_text( -40, -112, "DROP"); vpy_print_number(-12, -112, (long)(ds->dropped
 #ifndef VPY_DUAL_CORE
                                                                          + uvm2_stats.dropped

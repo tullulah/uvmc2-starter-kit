@@ -163,6 +163,15 @@ sort -t$'\t' -k2 -n -r *.su | head                            # the biggest fram
 
 Add the frames along your deepest call path; keep well under 4096.
 
+**And the running image measures itself.** Both stacks are painted at boot, and
+core 1 looks once a second for how deep the paint has been eaten:
+`uvm2_stats.stack0_peak` and `stack1_peak` are the deepest each stack has been, in
+bytes, and `stack_overflow` is sticky — bit 0 if core 0 ever reached its floor,
+bit 1 if core 1 did. Read them over SWD (`stats.py --all`), or print them as
+`physics_demo` does (`STACK` on its readout). That demo, with everything colliding,
+peaks at **2624 of 4096** on the UVMC2 (2026-10-03): even a heavy game has room,
+but not the room a few more 1 KB local arrays would need.
+
 ## A note on the two build paths
 
 There used to be a hand-written link (`uvm2_start.s` + `uvm2_game.ld`). It

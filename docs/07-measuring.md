@@ -186,6 +186,11 @@ ADDR=$(arm-none-eabi-nm "$ELF" | awk '$3=="uvm2_sd_error"{print $1}')
 probe-rs read --chip RP235x --speed 1000 b32 0x$ADDR 1
 ```
 
+A hang with nothing in the counters to explain it: read `stack_overflow` and
+`stack0_peak` first. An overflowing core 0 does not fault — it writes over core
+1's stack, and the console simply stops ([02](02-assembling-a-project.md), "Core 0
+has 4 KB of stack").
+
 The first twelve words of `uvm2_stats_t` (`uvm2_bus.h`), for reading a raw dump:
 
 ```
