@@ -34,6 +34,66 @@ a hardfault** (bad pointer, stack overflow, unaligned access), not a game
 spinning (`isr_hardfault` in `uvm2_pico_main.c`). Everything below needs the
 probe.
 
+#### Setting up the probe, from nothing
+
+What you need: a **Raspberry Pi Pico** (RP2040) or **Pico 2** (RP2350) — any one;
+it becomes the probe and nothing else — a USB cable for it, three jumper wires and
+a **2.0 mm JST-PH 3-pin** plug for the cartridge end (see the wiring below). The
+official Raspberry Pi Debug Probe works too, but its own cable ends in a 1.0 mm
+JST-SH plug and needs an adapter to the cartridge's PH header.
+
+1. **Put the Debugprobe firmware on the Pico.** Download it from Raspberry Pi's
+   releases page, <https://github.com/raspberrypi/debugprobe/releases> — the kit is
+   verified with **v2.3.1** — and take the file for your board:
+
+   | board | file |
+   |---|---|
+   | Pico (RP2040) | `debugprobe_on_pico.uf2` |
+   | Pico 2 (RP2350) | `debugprobe_on_pico2.uf2` |
+   | Raspberry Pi Debug Probe | `debugprobe.uf2` |
+
+   Hold the Pico's **BOOTSEL** button while plugging its USB cable in; it mounts
+   as a drive (`RPI-RP2` on a Pico, `RP2350` on a Pico 2). Copy the `.uf2` onto it.
+   It reboots on its own as a probe; the drive goes away, which is right.
+
+2. **Install probe-rs** on the computer. The kit is verified with **0.31.0**,
+   installed with Cargo (Rust is already a requirement of the kit):
+
+   ```sh
+   cargo install probe-rs-tools --locked
+   ```
+
+   probe-rs's own documentation has installers too. **On Linux**, a probe is only
+   usable by root until probe-rs's udev rules are installed — see the "Probe Setup"
+   page of the probe-rs documentation; macOS needs nothing.
+
+3. **Check the probe before touching the cartridge:**
+
+   ```sh
+   probe-rs --version                  # verified with 0.31.0
+   probe-rs list                       # reads USB descriptors only; does not touch the target
+   ioreg -p IOUSB -l -w0 | grep -A30 '"Debugprobe' | grep bcdDevice   # macOS
+   lsusb -v -d 2e8a:000c | grep bcdDevice                             # Linux
+   ```
+
+   It should list `Debugprobe on Pico (CMSIS-DAP)`, USB `2e8a:000c`; `bcdDevice
+   0x0231` is release 2.3.1.
+
+4. **Wire it** (next section), switch the console on with a game running, and
+   read something that cannot hurt:
+
+   ```sh
+   python3 sdk/uvm2-sdk/tools/stats.py build_uvm2/pico/<UVM2_NAME>.elf
+   ```
+
+   It checks first that the ELF is the image running, then prints the counters.
+   "Target device did not respond" means the console is off, the cartridge is not
+   seated or a wire is wrong — not a broken probe (`probe-rs list` already said the
+   probe is fine).
+
+Every command here passes `--chip RP235x`; probe-rs also accepts `RP2350` and
+warns that it matched it by wildcard.
+
 #### The probe and the wiring
 
 The probe is a second Raspberry Pi **Pico running the Debugprobe firmware**
@@ -99,6 +159,8 @@ All in `sdk/uvm2-sdk/tools/`. Each one's header says what it cost to learn.
 | `probe.sh [addr] [n]` | **yes** | PC, LR, SP and a block of memory. **Only on a console that is already hung**: the PC of a hang is worth more than any counter. |
 | `load.sh <elf>` | no¹ | put an image on the console over SWD instead of the SD card. Start any image from the menu first. |
 | `release.sh` | — | kill a session `load.sh` or a stray GDB server left attached. |
+| `swd_var.py <elf> <name> [value]` | no | read any global by name, or write a 1-, 2- or 4-byte one and read it back: the **live knobs** (below). |
+| `list_from_ram.py <elf> out.json` | no | the command list the console is replaying, straight from RAM, for `beam_sim.py`. Static screens only: it reads twice and refuses if they differ. |
 
 ¹ `load.sh` attaches through GDB to load, then releases. With `ATTACHED=1` it
 stays attached for debugging the startup, and while it is attached the console
@@ -131,6 +193,41 @@ The first twelve words of `uvm2_stats_t` (`uvm2_bus.h`), for reading a raw dump:
  4 moves         5 ramp_cycles   6 dropped       7 recals
  8 exec_cycles   9 vectors_last 10 moves_last   11 ramp_cycles_last
 ```
+
+#### Live knobs: an A/B on the tube without rebuilding
+
+Every runtime knob is a `volatile` global (the list is in
+[08](08-api-reference.md), "Drawing"), so it can be changed while a game runs and
+the tube watched — the same console, the same brightness, nothing else changed:
+
+```sh
+T=sdk/uvm2-sdk/tools
+python3 $T/swd_var.py $ELF uvm2_filler_clamp        # read
+python3 $T/swd_var.py $ELF uvm2_filler_clamp 0      # the old filler: is the diagonal back?
+python3 $T/swd_var.py $ELF uvm2_filler_clamp 1      # and gone again?
+python3 $T/swd_var.py $ELF uvm2_pacer_cycles 0      # free refresh, no filler at all
+```
+
+A write is gone at the next power cycle. A setting that wins goes into the source
+as the default, with the comparison in its comment. When nothing existing isolates
+a fault, add a temporary `volatile` switch, flash once, and bisect with it — that
+is how the 2026-10-02 dot was traced to one part of the joystick read
+([12](12-calibrating-a-console.md), "A diagonal or a dot"). Take the switch out
+again once the answer is in.
+
+#### The list the console is replaying, from RAM
+
+```sh
+python3 $T/list_from_ram.py $ELF list.json
+python3 $T/beam_sim.py list.json lit.svg
+```
+
+No card and no dump code in the game: the probe reads the buffer core 1 replayed
+last (`uvm2_frame_done & 1`). It is a large read, so do it once, on the screen you
+want; and it reads twice and refuses if the two differ, so it is for a static
+screen — a menu, a paused game, a test card. For a moving one, have the game call
+`uvm2_dump_list` (below). Builds with the list in PSRAM need `--psram
+<UVM2_CMD_CAPACITY>`.
 
 **Leave nothing attached.** After a block of measurements check
 `pgrep -f probe-rs` is empty. A session left attached makes the cartridge
@@ -173,8 +270,12 @@ padding (937 cycles per operation instead of 48).
 | `list_from_sd.py` | The same list from the SD card: `uvm2_dump_list` (or `uvm2_dump_list_on_buttons` once a frame) writes the last closed frame with a header — count, frame, `dropped`, `ramps_clamped`, a hash — and this refuses a file whose magic, length or hash is wrong, and warns when `dropped` is not zero. No probe needed. |
 | `beam_sim.py` | Plays a list against an ideal beam and reports what the **list** gets wrong: ramps started with the zero clamp on (must be 0), lit cycles under the clamp, the frame's length, and how long the integrators ran **dark and free** with `/RAMP` held open by Port B — a slow dark sweep is a line once the brightness is up; draws what is lit as an SVG, and where the blanked beam went in faint red. |
 
-**From the console to an answer, without halting it.** Freeze the frame, hold
-1+2 while `probe-rs attach` (which halts nothing) saves the RTT, then:
+**From the console to an answer, without halting it.** Three ways to get the list,
+by what you have: the **probe** and a static screen (`list_from_ram.py`, above);
+the **card** and a game that calls `uvm2_dump_list` (below); or the **debug
+cartridge's RTT**, which only that cartridge's BIOS prints — the UVMC2 has none.
+For the RTT, freeze the frame, hold 1+2 while `probe-rs attach --chip RP235x
+<bios.elf>` (which halts nothing) saves the RTT, then:
 
 ```sh
 python3 sdk/uvm2-sdk/tools/list_from_rtt.py rtt.log list.json

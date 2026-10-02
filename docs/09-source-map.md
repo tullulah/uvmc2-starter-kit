@@ -40,7 +40,7 @@ Sizes are rounded; they tell you whether a file is a glance or a session.
 | `uvm2_dump.c` | 140 | The last closed frame's command list to the SD card, with a header that proves it whole. Core 0 only; under the debug cart's BIOS the BIOS calls it. |
 | `tools/list_from_rtt.py`, `tools/list_from_sd.py`, `tools/beam_sim.py` | 70+70+150 | The command list the console ran, from an RTT dump or from the card, and what it does to an ideal beam. See [07](07-measuring.md). |
 | `tools/uvm2_sd_test.sh` | 110 | `uvm2_sd.c` against real FAT16 / FAT32 / exFAT (MBR and GPT) images, with `fsck -n` after. macOS. |
-| `tools/stats.py`, `probe.sh`, `load.sh`, `release.sh` | 380 | **SWD tools** for a console on the bench: read `uvm2_stats` without halting, the PC of a hang, load an image without the SD card. Which ones halt the core is in [07](07-measuring.md). |
+| `tools/stats.py`, `probe.sh`, `load.sh`, `release.sh`, `swd_var.py`, `list_from_ram.py` | 650 | **SWD tools** for a console on the bench: read `uvm2_stats` without halting, read or write any global by name (the live knobs), the command list straight from RAM, the PC of a hang, load an image without the SD card. Which ones halt the core is in [07](07-measuring.md). |
 
 ## `sdk/rp2350-sdk/` — the game-facing backend
 

@@ -53,7 +53,7 @@ rustup target add thumbv8m.main-none-eabi     # softfp bare-metal Cortex-M33
 | **ffmpeg** | `make snd` in `game/tacscan` — decoding `samples/*.wav` into the `.vsm` bundle. The bundle ships pre-built, so you only need this to regenerate it. |
 | **emscripten** (emsdk) | `make sim` — the WASM build for a browser harness. Not needed for the cartridge. |
 | a host C compiler | `make host` / `make host-prof` — the desktop test harness. Any `cc`. |
-| **probe-rs** (verified 0.31.0) + a Pico running **Debugprobe** (verified 2.3.1) | reading `uvm2_stats` over SWD on real hardware (`sdk/uvm2-sdk/tools/stats.py`); wiring in `docs/07-measuring.md`. `arm-none-eabi-gdb` too for `probe.sh` / `load.sh`. |
+| **probe-rs** (verified 0.31.0) + a Pico running **Debugprobe** (verified 2.3.1) | reading `uvm2_stats`, live knobs and the command list over SWD on real hardware (`sdk/uvm2-sdk/tools/`); how to turn a Pico into the probe, install probe-rs and wire it: `docs/07-measuring.md`, "Setting up the probe, from nothing". `arm-none-eabi-gdb` too for `probe.sh` / `load.sh`. |
 
 ## 2. Set up
 
