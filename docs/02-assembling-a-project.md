@@ -143,6 +143,26 @@ phosphor. If it "looks better at 60", some of that is brightness, not smoothness
 Board definition: `olimex_rp2350_xxl`, a stock pico-sdk board whose GPIO map
 matches the UVM2's.
 
+### Core 0 has 4 KB of stack
+
+The image uses the pico-sdk's memory map: **core 0 — your game — runs on 4 KB of
+stack** (`SCRATCH_Y`, 0x20081000–0x20082000), and core 1's stack, the core that
+replays the list, sits **right below it**. Overflow it and nothing reports a
+stack overflow: core 1's stack is overwritten and the console hangs. Big local
+arrays belong in `static` storage, not on the stack.
+
+It has happened: on 2026-10-02 `physics_demo` hung the UVMC2 as soon as two boxes
+touched, after `vpyphys` doubled a local candidate list. Measured with
+`-fstack-usage`, one call path held ~4.7 KB; the same game ran fine on the debug
+cartridge, where the game runs on a core with more stack. To check your own:
+
+```sh
+arm-none-eabi-gcc <your flags> -fstack-usage -c src/main.c   # writes main.su
+sort -t$'\t' -k2 -n -r *.su | head                            # the biggest frames
+```
+
+Add the frames along your deepest call path; keep well under 4096.
+
 ## A note on the two build paths
 
 There used to be a hand-written link (`uvm2_start.s` + `uvm2_game.ld`). It
