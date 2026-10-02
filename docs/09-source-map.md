@@ -37,6 +37,7 @@ Sizes are rounded; they tell you whether a file is a glance or a session.
 | `uvm2_bus_stream.h` | 46 | The C face of the Rust bus crate. No implementation here. |
 | `memmap_psram.ld` | 350 | Opt-in: link the whole image into PSRAM. Its comments are the best account of what does and does not belong in external memory. |
 | `tools/*.c`, `tools/*.py` | ~1500 | Host-side measurement tools. Not part of any build. See [07](07-measuring.md). |
+| `uvm2_hud.c` | 140 | **The diagnostics HUD**: buttons 1+4 held 2 s put fps, cycles, dropped, ramps_clamped and the stack peaks on the tube; `tools/uvm2_hud_test.c` checks it. |
 | `uvm2_dump.c` | 140 | The last closed frame's command list to the SD card, with a header that proves it whole. Core 0 only; under the debug cart's BIOS the BIOS calls it. |
 | `tools/list_from_rtt.py`, `tools/list_from_sd.py`, `tools/beam_sim.py` | 70+70+150 | The command list the console ran, from an RTT dump or from the card, and what it does to an ideal beam. See [07](07-measuring.md). |
 | `tools/uvm2_sd_test.sh` | 110 | `uvm2_sd.c` against real FAT16 / FAT32 / exFAT (MBR and GPT) images, with `fsck -n` after. macOS. |
@@ -75,7 +76,11 @@ Sizes are rounded; they tell you whether a file is a glance or a session.
 | `vpy-c/include/vpy3d.h`, `vpy-c/vpy3d.c` | 450+1390 | A small 3D layer in C (meshes, camera, projection, a per-axis window), drawing through the stroke buffer, plus the **screen-space occluder** that lets one solid hide another, dents, marks where shots landed, a ray against a mesh, and level of detail. The header's occlusion block is the manual. |
 | `vpy-c/include/vpyphys.h`, `vpy-c/vpyphys.c` | 285+2000 | **Rigid bodies, gravity, collisions, ray casts, joints.** Spheres, boxes and convex hulls; ball joints and hinges. Integer, deterministic. The header says what is measured. |
 | `vpy-c/include/vpyfx.h`, `vpy-c/vpyfx.c` | 95+325 | **Sparks, bursts and shattering**, one stroke per piece, within a stroke budget at the lowest priority. |
-| `vpy-c/include/vpyimpact.h`, `vpy-c/vpyimpact.c` | 75+150 | **Impact sounds**, synthesised on the PSG from the contact's impulse and the bodies' materials; `tools/impact_check.c` checks it. |
+| `vpy-c/include/vpyimpact.h`, `vpy-c/vpyimpact.c` | 120+350 | **Impact sounds**, synthesised on the PSG from the contact's impulse and the bodies' materials; quieter with distance from a listener; on a DAC (the UVMC2's jack) also stereo, panned, four at once, and Doppler-shifted loops. `tools/impact_check.c` checks it. |
+| `vpy-c/include/vpysoft.h`, `vpy-c/vpysoft.c` | 110+380 | **Soft bodies**: cloth, blobs that keep their area, any mesh as a jelly; springs drawn within a stroke budget. `tools/soft_check.c` checks it. |
+| `vpy-c/include/vpybone.h`, `vpy-c/vpybone.c` | 120+260 | **Skeletal animation**: rigid bones with a mesh each, forward kinematics in Q14 quaternions, keyframed clips with looping and blending, a limb handed to the two-bone IK; `tools/bone_check.c` checks it. |
+| `vpy-c/include/vpyent.h`, `vpy-c/vpyent.c` | 115+275 | **Entities**: transform, mesh, dents, marks, occluder, material in one table; draws the scene near to far through the occluder and steps camera, physics, impacts and effects in order. `tools/ent_check.c` checks it. |
+| `vpy-c/tools/text3d_check.c`, `shape_check.c` | 110+60 | vpy3d's text on planes, billboards and stereo; the console's screen shape. |
 | `vpy-c/tools/fx_check.c` | 130 | The effects against their header; exit status = failures. |
 | `vpy-c/tools/phys_check.c` | 400 | The physics against formulas and behaviours — hulls and joints included; exit status = failures. |
 | `vpy-c/tools/mesh_check.c` | 160 | A ray against a mesh (turned, moved, dented), marks, and the LOD pick. |

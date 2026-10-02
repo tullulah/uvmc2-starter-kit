@@ -115,6 +115,14 @@ void vpy3d_marks_add(vpy3d_marks *mk,const vpy_xf *place,int32_t x,int32_t y,int
 int  vpy3d_marks_draw(const vpy3d_marks *mk,const vpy_xf *place,int32_t radius,int br,
                       int style);                              /* VPY3D_MARK_RING / _CRACK */
 
+/* text in the world: the vector font on a plane, or square to the camera */
+int  vpy3d_text(const char *s,const vpy_xf *place,int32_t height,int br,int flags);
+int  vpy3d_text_billboard(const char *s,int32_t x,int32_t y,int32_t z,int32_t height,int br,int flags);
+                                         /* VPY3D_TEXT_OCCLUDE | _CENTRE | _FRONT */
+/* stereo, one picture per eye (for the 3D Imager); the console's screen shape */
+void vpy3d_set_stereo(int eye,int32_t half_separation,int32_t converge);  /* -1, +1; 0 = off */
+int  vpy3d_use_console_window(void);     /* the calibrated window instead of the 15500 square */
+
 /* level of detail: the version a ball of `radius` round place->t still deserves */
 int  vpy3d_lod_pick(const vpy_xf *place,int32_t radius,const int32_t *min_size,int n);  /* -1: none */
 int  vpy3d_draw_lod(const vpy_mesh *const *meshes,const int32_t *min_size,int n,
@@ -168,6 +176,28 @@ adding the object as an occluder. A full set gives up its oldest mark.
 `vpy3d_ray_mesh` finds the face a ray meets on any mesh, dented or morphed as it
 is now; `vpyp_raycast` stays the one for bodies. `vpy-c/tools/mesh_check.c`
 checks both and the LOD pick.
+
+**Text in the world.** `vpy3d_text` draws the same vector font PRINT_TEXT uses, on
+a plane placed by a `vpy_xf`: x along the text, y up the letters, read from the
+plane's -z side; `height` is a capital's height in world units, one stroke per
+font stroke. `VPY3D_TEXT_FRONT` hides it seen from behind (where it would read
+backwards); `vpy3d_text_billboard` puts it square to the camera at a point — a
+label over an object. `vpy-c/tools/text3d_check.c` checks size, centring,
+foreshortening on a floor, the billboard from two sides and occlusion.
+
+**Stereo.** `vpy3d_set_stereo(eye, half_separation, converge)` moves the camera
+half the separation to one side, looking parallel, and shifts the picture so the
+convergence plane has no parallax: what is nearer comes out of the screen. Draw
+the scene once per eye. It is the picture half of the 3D Imager; the goggles'
+driver (the wheel's speed and its sync) is not in the SDK yet — see `TODO.md`.
+
+**The console's screen shape.** A console calibrated for it (`aspect_q8`, `win_x`,
+`win_y` in `uvm2.cfg`, [12](12-calibrating-a-console.md)) has its aspect used by
+vpy3d on its own, unless the game calls `vpy3d_set_aspect`; its visible window
+only when the game asks with `vpy3d_use_console_window`, because a wider window
+changes what a game composed in the 15500 square shows. Not under the debug
+cartridge's BIOS, whose games do not link the configuration.
+`vpy-c/tools/shape_check.c` checks it.
 
 **Occlusion between solids is the caller's job, done with a silhouette.** Hidden
 lines are removed within a mesh, never between two: with no depth buffer, a
@@ -298,6 +328,13 @@ any other effect. Add `$(VPY_C_SDK)/vpyimpact.c` to `UVM2_SRCS`.
 enum { VPYI_SOFT, VPYI_WOOD, VPYI_METAL, VPYI_NONE = 255 };
 void vpyimpact_set_range(int32_t quiet,int32_t loud);   /* impulses: silent below, full from */
 int  vpyimpact_hit(int32_t impulse,int material);       /* one hit; 1 if it sounds */
+int  vpyimpact_hit_at(int32_t impulse,int material,int32_t x,int32_t y,int32_t z);  /* placed */
+void vpyimpact_set_listener(int32_t x,int32_t y,int32_t z,int32_t right_x,int32_t right_z,
+                            int32_t near_dist,int32_t far_dist);   /* the camera, usually */
+void vpyimpact_set_pcm(vpyimpact_sink sink,int rate,int psg_too);  /* stereo: the UVMC2's jack */
+void vpyimpact_pcm(int n);                               /* every frame: n = what the DAC takes */
+int  vpyimpact_loop(int slot,int32_t x,int32_t y,int32_t z,int32_t vx,int32_t vy,int32_t vz,
+                    int hz,int volume);                  /* an engine: Doppler-shifted */
 int  vpyimpact_contacts(const uint8_t *material_of,int floor_material);  /* after vpyp_step */
 void vpyimpact_step(void);                               /* once per frame */
 const vpyimpact_stats_t *vpyimpact_stats(void);          /* played, skipped, quiet */
@@ -311,6 +348,17 @@ replaces the one playing only if it is at least as loud as what that one has
 left; the rest are counted as skipped. `vpy-c/tools/impact_check.c` checks it
 through the real SFX player. The voices are starting values, heard on one
 console's speaker (2026-10-02) and not tuned further.
+
+**Where it happened.** With a listener set, a hit is quieter the further away it
+is — full up to `near`, nothing from `far` — on every cartridge, and contacts are
+placed where they touch. **On a cartridge with a DAC** (the UVMC2's jack: give
+`uvm2_jack_write_lr` as the sink, and call `vpyimpact_pcm(uvm2_jack_space())`
+every frame) the same voices are also rendered as 16-bit stereo, panned to their
+side, up to four at once; and **loops** — continuous sources such as an engine —
+whose pitch follows the Doppler shift against the listener. Measured on the host:
+a 400 Hz loop approaching at 40 m/s sounds at 452 Hz (theory 453), receding at
+358 (358). `physics_demo` uses all of it on a UVMC2 with its jack. Not yet heard
+through a jack.
 
 ### Effects — `vpyfx.h`
 
@@ -383,6 +431,90 @@ draws as one chained polyline, and `vpyrope_stats()->stretch` says how far the
 worst link was pulled. A replay is three bytes of input a frame and a seed —
 enough, because everything that moves in libvpy is deterministic
 (`tools/replay_check.c` plays 500 frames of physics back exactly).
+
+### Soft bodies — `vpysoft.h`
+
+Points joined by springs, that sag, wobble and flap: the same Verlet core as the
+ropes, with a stiffness per spring (Q8: 256 back to length every pass, less gives).
+A cloth or flag, a blob that keeps its area, or any vpy3d mesh as a jelly. Add
+`$(VPY_C_SDK)/vpysoft.c` to `UVM2_SRCS`.
+
+```c
+int  vpysoft_cloth(int32_t x,int32_t y,int32_t z,int w,int h,int32_t cell,int stiff_q8);
+int  vpysoft_blob(int32_t x,int32_t y,int32_t z,int n,int32_t radius,int stiff_q8,int pressure_q8);
+int  vpysoft_mesh(const vpy_mesh *m,int32_t x,int32_t y,int32_t z,int stiff_q8);
+void vpysoft_pin(int body,int i,int32_t x,int32_t y,int32_t z);   /* every frame to move it */
+void vpysoft_push(int body,int32_t vx,int32_t vy,int32_t vz);     /* a hit, a gust */
+void vpysoft_step(void);                                          /* once per frame */
+void vpysoft_draw(int body,int br,int occlude);  void vpysoft_draw2d(int body,int br);
+const vpysoft_stats_t *vpysoft_stats(void);      /* stretch, area_error_q8, drawn, shed, refused */
+```
+
+A blob keeps its area by pushing its rim along the area's gradient each pass:
+without that pressure a dropped ring kept 85% of its area, with it 99%. A mesh gets
+a hidden centre point tied to every vertex, because edges alone fold flat. Only
+structural springs are drawn, one stroke each at `VPY_PRI_LOW` within a budget
+(`vpysoft_set_budget`, default 160 a call), and what the budget leaves out is
+counted. Bodies meet the floor only, not each other nor vpyphys bodies.
+`vpy-c/tools/soft_check.c` checks it.
+
+### Skeletal animation — `vpybone.h`
+
+A tree of rigid bones posed by keyframed clips. Each bone is a joint at an offset
+from its parent's, turned by its own rotation (a Q14 quaternion), and carries its
+own small mesh: rigid parts, so nothing stretches. Add `$(VPY_C_SDK)/vpybone.c`
+and `vpyik.c` to `UVM2_SRCS`.
+
+```c
+vpyb_quat vpyb_quat_axis(int32_t ax,int32_t ay,int32_t az,int angle);   /* 4096 per turn */
+void vpyb_init(vpyb_skeleton *s);                          /* declare it static: ~2 KB */
+int  vpyb_add(vpyb_skeleton *s,int parent,int32_t ox,int32_t oy,int32_t oz,const vpy_mesh *m);
+void vpyb_pose(vpyb_skeleton *s,const int32_t pos[3],vpyb_quat rot);  /* forward kinematics */
+vpy_xf vpyb_xf(const vpyb_skeleton *s,int bone);           /* a bone's frame: attach things */
+int  vpyb_draw(const vpyb_skeleton *s,int br,int what);    /* VPYB_DRAW_MESH | VPYB_DRAW_LINES */
+void vpyb_apply(vpyb_skeleton *s,const vpyb_clip *c,int32_t t_q8);    /* time in frames, Q8 */
+void vpyb_apply_blend(vpyb_skeleton *s,const vpyb_clip *a,int32_t ta,
+                      const vpyb_clip *b,int32_t tb,int w_q8);         /* walk into run */
+int  vpyb_ik(vpyb_skeleton *s,int upper,const int32_t target[3],const int32_t pole[3]);
+const vpyb_stats_t *vpyb_stats(void);                      /* refused, ik_refused, ik_stretched */
+```
+
+A clip is one track of keys (frame, rotation) per bone, sampled with normalised
+linear interpolation, looping or held at its ends; two clips blend with a weight.
+`vpyb_ik` hands a limb (a bone, its child and grandchild: hip, knee, ankle) to the
+two-bone IK so the end lands on a target, then poses again: feet on uneven ground.
+Quaternions are Q14, so an IK end lands within ~3 units on bones ~450 long. No
+skinning — rigid parts, as the TODO asked first. `vpy-c/tools/bone_check.c` checks
+it against trigonometry.
+
+### Entities — `vpyent.h`
+
+The bookkeeping a 3D game with physics writes by hand, done once: an entity is a
+transform (a vpyphys body's, or one the game sets), a mesh (shared, or its own copy
+once dented), an occluder shape, its shot marks, a vpyimpact material, a kind and a
+user pointer. A fixed table (`VPYENT_MAX`, 64), every refusal counted. Add
+`$(VPY_C_SDK)/vpyent.c` with vpy3d, vpyphys, vpyimpact, vpyfx and vpycam.
+
+```c
+int  vpyent_create(const vpy_mesh *mesh,int body);       /* body VPYP_NONE: set_place */
+void vpyent_destroy(int e);                               /* and its body */
+void vpyent_set_occluder(int e,int kind,int32_t hx,int32_t hy,int32_t hz);  /* MESH BOX SPHERE NONE */
+void vpyent_set_material(int e,int material);             /* VPYI_* */
+int  vpyent_dent(int e,int32_t px,int32_t py,int32_t pz,int32_t dx,int32_t dy,int32_t dz,int32_t depth,int32_t r);
+void vpyent_mark(int e,int32_t x,int32_t y,int32_t z,int32_t nx,int32_t ny,int32_t nz);
+int  vpyent_draw(void);                                   /* near to far, through the occluder */
+int  vpyent_draw_shadows(int32_t lx,int32_t ly,int32_t lz,int32_t floor_y,int32_t lift,int br);
+int  vpyent_step(int floor_material);                     /* camera, impacts, physics, fx */
+const vpyent_stats_t *vpyent_stats(void);
+```
+
+**It removes the ordering trap.** The occluder only works drawn near to far, each
+solid drawn and then added, marks before the occluder that would cut them —
+`vpyent_draw` does that order every frame, whatever order the entities were
+created in. A mesh of more than 8 vertices with no occluder shape hides nothing,
+and `occl_missing` says so. `vpyent_step` reads the hit-stop before
+`vpycam_step` counts it down, so `vpycam_hitstop(n)` holds exactly n frames.
+`vpy-c/tools/ent_check.c` checks it.
 
 ### Inverse kinematics — `vpyik.h`
 
@@ -577,6 +709,12 @@ uint32_t uvm2_frame_count(void);
 uint32_t uvm2_frame_bus_cycles(void);
 void     uvm2_emit_raw(uint32_t reg,uint32_t data,uint32_t gap);   /* one raw command */
 
+/* the diagnostics HUD (uvm2_hud.c): buttons 1+4 held 2 s, or poke uvm2_hud */
+extern volatile uint8_t uvm2_hud;              /* 0 off, 1 on */
+extern uvm2_hud_stats_t uvm2_hud_stats;        /* cmds, cycles, vectors it added; drawn, skipped, toggles */
+extern char uvm2_hud_text[2][32];              /* the two lines last drawn, as text */
+uint32_t uvm2_list_room(void);                 /* commands the game may still add this frame */
+
 /* the last closed frame's list, to the SD card (uvm2_dump.c) — core 0 only */
 int  uvm2_dump_list(const char *path);                       /* 1 if written */
 int  uvm2_dump_list_on_buttons(const char *path,uint8_t mask);   /* once per press */
@@ -733,6 +871,8 @@ struct uvm2_config {
     int32_t start_menu;   /* 1 = menu on power-up */
     int32_t rotate;       /* 1 = drawing rotated 90 degrees */
     int32_t audio;        /* 0 = the jack, 1 = the console's chip (game setting) */
+    int32_t aspect_q8;    /* the screen's shape: x against y, 256 = 1:1 */
+    int32_t win_x, win_y; /* what the tube shows, half extents in deflection units */
 };
 int  uvm2_config_load(void);
 int  uvm2_config_save(void);
@@ -824,8 +964,12 @@ another cartridge's BIOS. Arguments in r0-r3, AAPCS.
 | 10 | `SAMPLE_POS` | 27 | `DRAW_GAPPED` |
 | 11 | `BUS_READ` | 28 | `MOVE_Q4` |
 | | | 29 | `DRAW_DELTA_Q4` |
+| | | 30 | `CALIBRATE` |
 
-The gaps (9, 17-20, 24, 25) are unassigned. `23` and `26` are worth not
+The gaps (9, 17-20, 24, 25) are unassigned here; the debug cartridge's BIOS uses
+some of them for its own. `CALIBRATE` (30) runs the calibration screen and returns
+1 if it saved — VPy's `CALIBRATE()`; for a day (2026-10-02) the BIOS gave it 26,
+which is `RASTER_TEXT` here. `23` and `26` are worth not
 confusing: raster text once went out as `23`, which is `PLAY_SFX` in the other
 cartridge's BIOS; the SFX player took the text pointer for a track and hung the
 core (see the note in `sdk_rp2350.c`).

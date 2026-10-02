@@ -55,7 +55,8 @@ Legend: **[ ]** not started · **[x]** done · **[~]** partly done · **(asked)*
   each piece a small convex mesh, or simply each EDGE becomes a spinning stick with
   its own velocity — the classic vector explosion, and it costs exactly the edges
   the object already had, falling to zero as pieces fade.
-- [ ] **(idea) Soft bodies.** Mass-spring meshes (jelly, flags, cloth, a wobbling
+- [x] **(idea) Soft bodies.** *`vpysoft` (2026-10-03): cloth, blobs that keep their area, a mesh as a jelly;
+  floor only, no collisions between bodies. Host-checked, not yet on a console.* Mass-spring meshes (jelly, flags, cloth, a wobbling
   blob). Same Verlet core as the ropes; the strokes are the springs.
 - [x] **(idea) Shockwaves.** *`vpyp_blast` (the push) and `vpyfx_ring` (the ring), 2026-10-01.* An expanding ring that fades with radius and pushes
   bodies it passes. Cost: one ring of N strokes, N fixed.
@@ -72,7 +73,8 @@ Legend: **[ ]** not started · **[x]** done · **[~]** partly done · **(asked)*
 
 ## Animation
 
-- [ ] **(idea) Skeletal animation.** Bones with rigid parts first (each limb a
+- [x] **(idea) Skeletal animation.** *`vpybone` (2026-10-03): rigid bones, Q14 quaternions, keyframed clips
+  with blending, a limb on the two-bone IK; no skinning. Host-checked.* Bones with rigid parts first (each limb a
   mesh on a joint — what kuroishi's figure does by hand), keyframes, blending
   between clips.
 - [x] **(idea) Inverse kinematics.** *`vpyik_two_bone` (2026-10-01).* Two-bone IK for feet on uneven ground and arms
@@ -95,14 +97,30 @@ Legend: **[ ]** not started · **[x]** done · **[~]** partly done · **(asked)*
 - [x] **(idea) Hidden-line terrain.** *`vpy3d_terrain` (2026-10-01): rows, floating horizon.* Heightmap landscapes with the floating-horizon
   algorithm: rows drawn front to back, each clipped by the highest line so far. The
   natural occluder for terrain, which convex hulls are not.
-- [ ] **(idea) 3D Imager support.** The Vectrex's own stereo goggles: draw a left
+- [~] **(idea) 3D Imager support.** *The picture is done: `vpy3d_set_stereo` draws one view per eye
+  (2026-10-03). The goggles' DRIVER is not, and needs an Imager on the bench: it is core 1's
+  job and changes how it replays.* The Vectrex's own stereo goggles: draw a left
   and a right view in step with the spinning wheel. Real 3D, on this console only.
-- [ ] **(idea) Text on 3D planes.** The vector font transformed like any geometry:
+  **What the driver must do** (from Malban's emulation notes, nicole.express and the
+  FuzzyLogic8192 Triangle demo, 2026-10-03): the wheel's speed is PWM on controller
+  port 2 pin 2 — the PSG's I/O port A set as an OUTPUT (reg 7 bit 6) and reg 14
+  written low (0x80) then high (0xFF); a higher duty cycle spins it faster. Once a
+  revolution the index hole makes "button 4" of port 2, also wired to VIA CA1, which
+  can interrupt. Start-up: heavy pulses until four revolutions in a row arrive within
+  the wanted period; then one pulse a revolution, its length (a Timer 2 delay) nudged
+  by half the period error every 16 revolutions. The wheel turns ~27-30 Hz in six
+  phases — right eye blue, green, red, then left — and only the middle quarter of
+  each phase is clean colour. For this SDK that means core 1 replaying a list PER
+  PHASE in step with CA1, not one list at a fixed 50 Hz, and owning the PSG port's
+  direction between frames (the buttons are read on the same port).
+- [x] **(idea) Text on 3D planes.** *`vpy3d_text` and `vpy3d_text_billboard` (2026-10-03), the PRINT_TEXT font
+  on a plane or square to the camera. Host-checked.* The vector font transformed like any geometry:
   signs, titles flying past the camera.
 
 ## Gameplay infrastructure
 
-- [ ] **(idea) An entity/scene layer.** Objects with transform, mesh, body and
+- [x] **(idea) An entity/scene layer.** *`vpyent` (2026-10-03). Not yet used by physics_demo, which still
+  wires its bodies by hand. Host-checked.* Objects with transform, mesh, body and
   collider; the SDK does near-to-far ordering and occluder registration, removing
   the ordering trap from the occluder.
 - [x] **(idea) Steering and pathfinding.** *`vpyai` (2026-10-01); flocking is separate +
@@ -116,7 +134,9 @@ Legend: **[ ]** not started · **[x]** done · **[~]** partly done · **(asked)*
 
 ## Audio
 
-- [ ] **(idea) Positional sound.** Pan on the stereo jack by screen position,
+- [x] **(idea) Positional sound.** *`vpyimpact` (2026-10-03): volume by distance from a listener on every
+  cartridge; on the UVMC2's jack stereo pan and Doppler-shifted loops. Host-checked against
+  theory; not yet heard through a jack.* Pan on the stereo jack by screen position,
   volume by distance, a pitch shift for approaching objects. *The pan needs the
   UVMC2's jack (`uvm2_jack.c`); the debug cartridge has none.*
 - [x] **(idea) Impact sounds from physics.** *`vpyimpact` (2026-10-02): synthesised on
@@ -134,7 +154,8 @@ Legend: **[ ]** not started · **[x]** done · **[~]** partly done · **(asked)*
   (2026-10-01). Tried on the debug cartridge 2026-10-02: written, read back, hash right,
   replayed in beam_sim. The RTT dump stays.*, the same on both
   cartridges, with a script that reassembles the passes for the simulator.
-- [ ] **(idea) A built-in diagnostics HUD** on a button combo: dropped, strokes,
+- [x] **(idea) A built-in diagnostics HUD** *`uvm2_hud.c` (2026-10-03): buttons 1+4 held 2 s, in every .um2;
+  not in the debug cart's BIOS. Host-checked, not yet on a tube.* on a button combo: dropped, strokes,
   fps, `ramps_clamped`, over any game.
 - [x] **(idea) Fail the BIOS build if it does not define the SDK's weak hooks.** *For
   `uvm2_core1_gap`, the one a BIOS needs: no default under `UVM2_BIOS` (2026-10-01).*
@@ -142,7 +163,8 @@ Legend: **[ ]** not started · **[x]** done · **[~]** partly done · **(asked)*
 - [x] **(idea) Mend the six host tools that do not link** *— `tools/uvm2_host_stubs.c` and
   `tools/build_host_tools.sh` (2026-10-01); all eight build.* and build them all from
   one target, so they cannot rot unnoticed again.
-- [ ] **(idea) Per-console screen shape in the calibration wizard.** Measure the
+- [x] **(idea) Per-console screen shape in the calibration wizard.** *ASPECT, WIN X, WIN Y (2026-10-03);
+  vpy3d takes the aspect, the window on request. Not yet tried on a tube.* Measure the
   visible window and the small aspect error per console, store them in
   `uvm2.cfg`, and let vpy3d use them.
 

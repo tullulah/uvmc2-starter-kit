@@ -43,6 +43,8 @@
  * HITS SOUND (vpyimpact): the loudest contact of each step is synthesised on
  * the PSG, as loud as its impulse — wood for the crates, the pieces and the
  * door, a soft bump for the balls — and a shattering crate is a full crash.
+ * The camera is the listener: a hit far back in the pit is quieter, and on a
+ * UVMC2 with its jack the hits also come out in stereo, on their side.
  */
 #include <vpy.h>
 #include <vpy3d.h>
@@ -52,6 +54,7 @@
 #include <vpyimpact.h>
 #ifndef VPY_DUAL_CORE
 #include <uvm2_bus.h>   /* the .um2: the SDK is in the image */
+#include <uvm2_jack.h>  /* the UVMC2's stereo DAC, where there is one */
 #endif
 
 /* ── the scene, in world units (mm). Composition, not measurement. ───────── */
@@ -257,6 +260,9 @@ static void setup_world(void)
     for (int i = 0; i < VPYP_MAX_BODIES; i++) s_mat[i] = VPYI_NONE;   /* the walls: what hits them decides */
     vpyimpact_reset();
     vpyimpact_set_range(IMPACT_QUIET, IMPACT_LOUD);
+    /* the camera listens: full volume across the near half of the pit, fading to
+     * nothing well past its far wall (composition, not measurement) */
+    vpyimpact_set_listener(EYE_X, EYE_Y, EYE_Z, 1, 0, 4000, 9000);
     w = vpyp_add_box(0, WALL_H, PIT + WALL_T, PIT + WALL_T, WALL_H, WALL_T, 0);  s_kind[w] = K_WALL_X;
     w = vpyp_add_box(0, WALL_H, -PIT - WALL_T, PIT + WALL_T, WALL_H, WALL_T, 0); s_kind[w] = K_WALL_X;
     w = vpyp_add_box(PIT + WALL_T, WALL_H, 0, WALL_T, WALL_H, PIT, 0);           s_kind[w] = K_WALL_Z;
@@ -572,6 +578,12 @@ static int pressed(int n)
     return edge;
 }
 
+#ifndef VPY_DUAL_CORE
+/* the jack, if this cartridge has one: the hits in stereo, the speaker still on */
+static int s_jack;
+static void jack_sink(const int16_t *l, const int16_t *r, int n) { uvm2_jack_write_lr(l, r, n); }
+#endif
+
 static void setup(void)
 {
     build_crate(&s_crate, CRATE);
@@ -583,6 +595,10 @@ static void setup(void)
     build_from_faces(&s_wedge, WEDGE_V, 6, WEDGE_F);
     vpy3d_set_mesh_occlusion(1);
     setup_world();
+#ifndef VPY_DUAL_CORE
+    s_jack = uvm2_jack_init();
+    if (s_jack) vpyimpact_set_pcm(jack_sink, UVM2_JACK_RATE, 1);
+#endif
 }
 
 static void loop(void)
@@ -605,9 +621,15 @@ static void loop(void)
     if (pressed(4)) setup_world();
 
     /* physics: one step per frame, except while a hit-stop holds time */
+    /* WHETHER TIME HOLDS IS ASKED BEFORE THE CAMERA STEPS: vpycam_step counts the hit-stop
+     * down, so asking after it held hitstop(3) for 2 frames (found by vpyent's check). */
+    const int held = vpycam_stopped();
     vpycam_step();
     vpyimpact_step();
-    if (!vpycam_stopped()) {
+#ifndef VPY_DUAL_CORE
+    if (s_jack) vpyimpact_pcm(uvm2_jack_space());   /* what the DAC can take, every frame */
+#endif
+    if (!held) {
         vpyp_step();
         vpyimpact_contacts(s_mat, VPYI_NONE);   /* the floor is silent: what lands on it decides */
         sparks_from_contacts();

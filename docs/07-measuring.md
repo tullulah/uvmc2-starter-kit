@@ -199,6 +199,26 @@ The first twelve words of `uvm2_stats_t` (`uvm2_bus.h`), for reading a raw dump:
  8 exec_cycles   9 vectors_last 10 moves_last   11 ramp_cycles_last
 ```
 
+#### The HUD: the counters on the tube, without a probe
+
+Hold **buttons 1 and 4 — only those — for two seconds** in any `.um2` game and two
+lines appear in the top-left corner; hold them again and they go. Or poke
+`uvm2_hud` over SWD (`swd_var.py $ELF uvm2_hud 1`).
+
+    F50 C12840 D0 Z0          fps, the game's bus cycles this frame, dropped, ramps_clamped
+    S2624 812 N3614 V322      core 0 / core 1 stack peaks, the game's commands and vectors
+
+D and Z must be 0; either one non-zero adds `!!`, and a stack overflow adds `!`
+after the stacks. C, N and V are the game's own, read before the HUD draws.
+
+**The HUD is not free.** Text is expensive on this beam: its two lines cost about
+600–1,000 commands and 4,000–7,000 bus cycles a frame (measured on the host), so a
+game near its 30,000-cycle budget drops below 50 Hz while it is on. Its own share is
+in `uvm2_hud_stats`. It is drawn chained, the way a game draws, so on a badly
+calibrated console it bends like the game's text does. It is skipped (counted)
+rather than allowed to overflow a full list. Not in the debug cartridge's BIOS,
+which has the probe instead. Not yet seen on a tube.
+
 #### Live knobs: an A/B on the tube without rebuilding
 
 Every runtime knob is a `volatile` global (the list is in

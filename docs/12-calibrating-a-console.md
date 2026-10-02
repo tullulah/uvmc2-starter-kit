@@ -235,6 +235,24 @@ effect live.
 
 ---
 
+## The screen's shape: ASPECT, WIN X, WIN Y
+
+Three fields that are not about the beam's accuracy but about the glass. Select
+any of them and the screen shows a **square with a circle inside** and a **frame**:
+
+* **ASPECT** (256 = 1:1) stretches x against y. Right when the square is square on
+  the glass and the circle round — measure the square with a ruler if the eye is
+  unsure. One console measured 1:1 by photograph (2026-10-01); a console whose
+  size pots are off is not, and this is its fix.
+* **WIN X / WIN Y** (deflection units) are the frame's half width and height.
+  Right when the frame just touches the edges of what the tube shows. That
+  console showed about ±18000 × ±20500.
+
+vpy3d games take the ASPECT by themselves (unless a game sets its own); the
+window only when a game asks for it (`vpy3d_use_console_window`), because a wider
+window changes what a game composed in the 15500 square shows. The defaults, 256
+and 15500, change nothing. Not yet tried on a tube.
+
 ## A diagonal or a dot with the brightness up
 
 Two artefacts that showed on every game and in the debug cartridge's menu, on one
