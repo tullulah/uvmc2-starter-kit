@@ -765,6 +765,16 @@ void     uvm2_psg_write(uint32_t reg,uint32_t value);
 uint8_t  uvm2_psg_read(uint32_t reg);
 ```
 
+The console's reset button (06, "The console's reset button"): under 1 s nothing,
+1–3 s and let go restarts the game, 3 s returns to the UVMC2's menu.
+
+```c
+void uvm2_mem_write(uint32_t addr,uint32_t data);   /* any bus address; core 1, between frames */
+extern volatile uint32_t uvm2_reset_seen;           /* presses of the reset button noticed */
+extern volatile uint32_t uvm2_reset_held_us;        /* how long the current one has lasted */
+extern volatile uint32_t uvm2_restart_refused;      /* restarts refused: .data over 4 KB */
+```
+
 ### Sound — `uvm2_audio.h`, `uvm2_smp.h`
 
 ```c

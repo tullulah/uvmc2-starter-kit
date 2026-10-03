@@ -98,6 +98,12 @@ the stock firmware over SWD while it sat in its own menu**, not read off the
 schematic — the schematic reading was off by two and the symptom was a card that
 simply never answered.
 
+**No reset line, one button.** The console's reset button is not on the cartridge
+edge, and the UVMC2's own button, SW1, is the RP2350's BOOTSEL — it pulls the
+flash's chip select, not a GPIO; `/RUN` has only a pull-up. The SDK sees the
+console's reset through the VIA instead, whose timers stop while it is held
+([06](06-sound-input-sd.md), "The console's reset button").
+
 ## PSRAM
 
 There is 8 MB on CS1 that the firmware does not map. `uvm2_psram_init()` resets
