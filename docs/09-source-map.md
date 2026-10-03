@@ -81,7 +81,7 @@ Sizes are rounded; they tell you whether a file is a glance or a session.
 | `vpy-c/include/vpybone.h`, `vpy-c/vpybone.c` | 120+260 | **Skeletal animation**: rigid bones with a mesh each, forward kinematics in Q14 quaternions, keyframed clips with looping and blending, a limb handed to the two-bone IK; `tools/bone_check.c` checks it. |
 | `vpy-c/include/vpyent.h`, `vpy-c/vpyent.c` | 115+275 | **Entities**: transform, mesh, dents, marks, occluder, material in one table; draws the scene near to far through the occluder and steps camera, physics, impacts and effects in order. `tools/ent_check.c` checks it. |
 | `vpy-c/tools/text3d_check.c`, `shape_check.c` | 110+60 | vpy3d's text on planes, billboards and stereo; the console's screen shape. |
-| `vpy-c/tools/fx_check.c` | 130 | The effects against their header; exit status = failures. |
+| `vpy-c/tools/fx_check.c` | 190 | The effects against their header — the disintegration's wave and the assembly landing on the edges included; exit status = failures. |
 | `vpy-c/tools/phys_check.c` | 400 | The physics against formulas and behaviours — hulls and joints included; exit status = failures. |
 | `vpy-c/tools/mesh_check.c` | 160 | A ray against a mesh (turned, moved, dented), marks, and the LOD pick. |
 | `vpy-c/tools/terrain_check.c` | 90 | The floating horizon: flat land all shows, a ridge hides what is behind it, nothing drawn under what came before. |
@@ -143,7 +143,7 @@ Only what `game/tacscan` needs is here (~52 files). Other AAE games need more.
 | `tools/wav_to_vsmp.py`, `audio2vsmp.py` | 350 | `samples/*.wav` → `build/tacscan.vsm`. |
 | `roms/`, `samples/` | — | The romset and the 22 source sounds. |
 
-## `examples/physics_demo/`, `soft_demo/`, `bone_demo/`, `scene_demo/`, `occlusion_demo/`, `geometry_card/`
+## `examples/physics_demo/`, `soft_demo/`, `bone_demo/`, `scene_demo/`, `fx_demo/`, `occlusion_demo/`, `geometry_card/`
 
 | dir | what it is |
 |---|---|
@@ -151,6 +151,7 @@ Only what `game/tacscan` needs is here (~52 files). Other AAE games need more.
 | `soft_demo` | A flag on a pole flying in a wind the stick sets, a jelly blob that keeps its area (button 1 drops it, 2 punches it), a jelly cube (3). vpysoft + vpy3d. |
 | `bone_demo` | A 13-bone figure walking and running (two clips blended by the stick, phase-shared), up and down steps with feet placed by two-bone IK, a wave clip on one arm. vpybone + vpyik + vpy3d. |
 | `scene_demo` | A scene built only from vpyent entities (crates, balls, walls) under an orbiting camera: one call draws it near to far through the occluder, one steps it; a turning two-faced 3D sign, words painted on the floor, billboard labels over the newest bodies; shots dent and mark through the entity; impacts heard from the camera, in stereo on the UVMC2's jack. |
+| `fx_demo` | A turning shape that comes apart from where it is shot — a wave from the hit, the far side still whole — and the next one assembling edge by edge from flying pieces, handed over to the mesh when the last lands. Cube, octahedron, pyramid. vpyfx + vpy3d ray. `tools/host_render.c` renders a scripted session to SVG. |
 | `occlusion_demo` | Three turning meshes, one swinging through the others, with occlusion on and off. |
 | `geometry_card` | A test card to photograph: is a unit the same size in x and y, and where does the glass end. |
 

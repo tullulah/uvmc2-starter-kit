@@ -366,7 +366,11 @@ Sparks and debris, one stroke per piece. A **spark** is a point drawn as a
 streak along its velocity; a **stick** is a rigid segment that moves and spins.
 `vpyfx_shatter()` turns every edge of a mesh into a stick thrown out from the
 point of the blow — the classic vector explosion, costing exactly the edges the
-object had. Add `$(VPY_C_SDK)/vpyfx.c` to `UVM2_SRCS`.
+object had. `vpyfx_disintegrate()` is the finer version: every edge cut into
+short pieces that wait in place until a wave from the hit reaches them, so the
+object comes apart from where it was struck; `vpyfx_assemble()` runs it the
+other way, pieces flying in and settling exactly on the edges, edge after edge.
+Add `$(VPY_C_SDK)/vpyfx.c` to `UVM2_SRCS`.
 
 ```c
 void vpyfx_reset(void);  void vpyfx_seed(uint32_t s);
@@ -377,6 +381,11 @@ int  vpyfx_burst(int32_t x,int32_t y,int32_t z, int32_t vx,int32_t vy,int32_t vz
                  int count,int32_t speed,int life,int br);
 int  vpyfx_shatter(const vpy_mesh *m,const vpy_xf *place, int32_t vx,int32_t vy,int32_t vz,
                    int32_t cx,int32_t cy,int32_t cz, int32_t speed,int32_t spin,int life,int br);
+int  vpyfx_disintegrate(const vpy_mesh *m,const vpy_xf *place, int32_t cx,int32_t cy,int32_t cz,
+                        int per_edge,int32_t speed,int32_t spin,int32_t wave,int life,int br);
+int  vpyfx_assemble(const vpy_mesh *m,const vpy_xf *place, int per_edge,int32_t scatter,
+                    int frames,int stagger,int br);           /* returns a group id */
+int  vpyfx_assembled(int group);  void vpyfx_release(int group);
 int  vpyfx_ring(int32_t cx,int32_t cy,int32_t cz, int32_t nx,int32_t ny,int32_t nz,
                 int32_t r0,int32_t speed,int segments,int life,int br);   /* a shockwave to see */
 int  vpyfx_line(int32_t ax,int32_t ay,int32_t az, int32_t bx,int32_t by,int32_t bz,
@@ -388,7 +397,11 @@ const vpyfx_stats_t *vpyfx_stats(void);                       /* alive, drawn, s
 
 Effects draw at `VPY_PRI_LOW` within their stroke budget, so they are the first
 thing shed when a frame is full — never the scenery — and what is left out is
-counted. Deterministic, with a seeded generator. Pieces pass through solid
+counted. A disintegration or an assembly costs `per_edge` strokes per edge (a
+cube at 8 is 96), so for one that is the point of the scene raise the budget,
+or the far side of the object is what gets shed. When `vpyfx_assembled(g)` says
+every piece is in place, draw the mesh and `vpyfx_release(g)` in the same frame:
+the pieces sit exactly on the edges, so the hand-over does not show. Deterministic, with a seeded generator. Pieces pass through solid
 bodies; what shoves the neighbours of an explosion is `vpyp_blast`, and
 `vpyfx_ring` is the shockwave you see. `vpy-c/tools/fx_check.c` holds
 it to its header. Uses vpy3d (`vpy3d_mesh_edge` reads a mesh's edges).
