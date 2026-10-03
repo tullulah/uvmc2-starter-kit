@@ -49,7 +49,7 @@ be rediscovered on the other.
 | | default | why |
 |---|---|---|
 | `DRAW_SCALE` | 160 | The divisor. **Larger = shorter strokes.** With a fixed ramp the scale *is* the duration; tying `s` to `t1` is what makes the drawer's idea of its own position match the real travel (they diverged 21% per vector before). |
-| `MIN_T1` | 8 | The dwell floor. 8 is what the reference cartridge measures on 1861 of ~1900 short lit strokes across 8 captured frames. |
+| `MIN_T1` | 8 | The dwell floor. Without it, short strokes get ramps of 3 to 7 cycles and the geometry breaks (27% of one game's strokes, measured). |
 | `MIN_T1_START` | 31 | The floor for ramps that start **from rest** (a jump, and the first stroke after one). Below ~31 those come out visibly stepped: the deflection lag is *fixed* (~2 E cycles of beam-on plus 2 of blank settle) while the stroke duration is not, so on an 8-cycle stroke the lag is half of it. That is a property of the tube, not a preference. |
 | `DAC_CAP` | 127 | The DAC is 8-bit signed. A rate cannot exceed it, so a long stroke is bounded by duration, not speed. |
 | `T1_TRANSPORT` | 160 | The T1 ceiling for blanked jumps — they are allowed to be faster than lit strokes. |
@@ -59,17 +59,16 @@ be rediscovered on the other.
 
 Everything travels in **1/16 of a device unit** (`UVM2_SUBUNITS`, `UVM2_Q_BITS=4`),
 end to end: `v_directDraw32` converts once and the SDK splits, re-zeroes and
-calibrates in that unit. A 2.5-unit stroke stays 2.5 units. This was validated
-against a reference capture and is the only path — the integer knobs that used to
-sit alongside it no longer exist.
+calibrates in that unit. A 2.5-unit stroke stays 2.5 units. This is the only
+path — the integer knobs that used to sit alongside it no longer exist.
 
 ### The debt
 
 Splitting a real distance into `(rate, t1)` loses a fraction. `ramp_params_chain`
 carries that remainder forward as a **debt** and pays it into the next stroke, so
-errors do not accumulate along a chain. (Measured: on fine enough input the debt
-stops helping — 97.9% → 99.8% of strokes identical to the reference when removed
-in Q8 — but on coarse input it is what keeps a long chain straight.)
+errors do not accumulate along a chain. (On fine enough input, Q6 and finer, the
+debt stops helping and starts adding error, so it is turned off there; on coarse
+input it is what keeps a long chain straight.)
 
 ## Re-zeroing
 

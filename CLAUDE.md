@@ -162,8 +162,8 @@ There is no console on a cartridge, so measurement discipline substitutes for it
 * The cartridge's stock firmware. The `.um2` runs *instead of* it; this kit never
   modifies it.
 * The private repository this kit was cut from. Some comments refer to "another
-  cartridge" or "a reference capture" — those are real, and deliberately not
-  named or included.
+  cartridge" — that is the Vectrex Studio debug cartridge, whose firmware is not
+  included.
 * A simulator. `sdk/pitrex-sim/` is the host-side *contract*, which is what makes
   a game buildable for a desktop harness; the harness itself is per game
   (`game/tacscan/tools/host_test.c` is an example).
@@ -173,9 +173,9 @@ There is no console on a cartridge, so measurement discipline substitutes for it
 **The beam defaults were measured on one console.** Distortion reported from another
 console — text rows tilting into diagonals, columns cascading — is a calibration
 question first (`docs/12-calibrating-a-console.md`), not a drawing bug. The zero
-reference's default `0x23` (from Vectorblade) differs from what VecFever writes
-(`0x07`, in four bus captures); which one suits most consoles is open. Do not
-change the default without console measurements from more than one machine.
+reference's default `0x23` (from Vectorblade) was never meant to be universal; which
+value suits most consoles is open. Do not change the default without console
+measurements from more than one machine.
 
 `cargo test` in `sdk/vectrex-draw` passes with one test **ignored on purpose**,
 `emit::pentagon::ramp_error_has_no_bias`: it measures a real +0.0768 units per

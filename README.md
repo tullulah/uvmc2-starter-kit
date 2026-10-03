@@ -170,9 +170,9 @@ answers it, and `docs/08-api-reference.md` is the complete API.
 
 * **The beam defaults were measured on one console.** Any other console should be
   calibrated once ([12](docs/12-calibrating-a-console.md)). The zero reference's
-  default (`0x23`, from Vectorblade) differs from what the VecFever cartridge
-  writes (`0x07`). Which one fits most consoles is still an open question, and
-  the calibration exists so that it does not have to be answered first.
+  default (`0x23`, from Vectorblade) was never meant to be universal. Which value
+  fits most consoles is still an open question, and the calibration exists so
+  that it does not have to be answered first.
 
 * `cargo test` in `sdk/vectrex-draw` passes, with **one test ignored on
   purpose**: `emit::pentagon::ramp_error_has_no_bias`. It finds a real bias of

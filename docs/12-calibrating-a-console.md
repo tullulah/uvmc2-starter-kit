@@ -221,10 +221,6 @@ What we know about the right value:
 * The SDK's default, `0x23`, comes from **Vectorblade**, an open-source Vectrex
   game that ships it as the *factory* value of a calibration the player adjusts
   per console. It was never meant to be universal.
-* Bus captures of the **VecFever** cartridge (Star Wars, Empire Strikes Back,
-  Vector Kong and Major Havoc) show a zero block identical to ours, register for
-  register and gap for gap. The one exception is this value: VecFever writes
-  `0x07` (and `0x00`/`0x08` in Vector Kong).
 * The zero block charges the reference only partially (about 7 cycles towards the
   value, then 4 towards `0xFF`). So the level it actually reaches depends on each
   console's analog parts too. That is why the value is calibrated, not fixed.
@@ -276,8 +272,7 @@ jump leaves a faint thread; a slow sweep or a parked beam leaves a line or a dot
 
 ## What the calibration does not reach
 
-Some console-dependent timings are compile-time only, fixed at values taken from
-reference captures:
+Some console-dependent timings are compile-time only, fixed at measured values:
 
 * the Y sample-and-hold window on ordinary strokes and jumps (about 10–11 E);
 * how often the beam is re-zeroed (`uvm2_zero_jump`, `uvm2_zero_every`);
