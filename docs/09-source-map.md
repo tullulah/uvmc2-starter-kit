@@ -143,11 +143,14 @@ Only what `game/tacscan` needs is here (~52 files). Other AAE games need more.
 | `tools/wav_to_vsmp.py`, `audio2vsmp.py` | 350 | `samples/*.wav` → `build/tacscan.vsm`. |
 | `roms/`, `samples/` | — | The romset and the 22 source sounds. |
 
-## `examples/physics_demo/`, `examples/occlusion_demo/`, `examples/geometry_card/`
+## `examples/physics_demo/`, `soft_demo/`, `bone_demo/`, `scene_demo/`, `occlusion_demo/`, `geometry_card/`
 
 | dir | what it is |
 |---|---|
 | `physics_demo` | Crates and balls under gravity in a pit: drop them, shoot them. Hard knocks and shots dent crates, the third shot shatters one and its blast scatters the rest, every hard contact throws sparks, and a shot leaves a mark on what it hits; hits sound (vpyimpact). A door on a hinge, and pyramids and wedges as convex hulls (button 3 drops crate, pyramid, wedge in turn). vpyphys + vpyfx + vpy3d with mesh occlusion, dents and marks. |
+| `soft_demo` | A flag on a pole flying in a wind the stick sets, a jelly blob that keeps its area (button 1 drops it, 2 punches it), a jelly cube (3). vpysoft + vpy3d. |
+| `bone_demo` | A 13-bone figure walking and running (two clips blended by the stick, phase-shared), up and down steps with feet placed by two-bone IK, a wave clip on one arm. vpybone + vpyik + vpy3d. |
+| `scene_demo` | A scene built only from vpyent entities (crates, balls, walls) under an orbiting camera: one call draws it near to far through the occluder, one steps it; a turning two-faced 3D sign, words painted on the floor, billboard labels over the newest bodies; shots dent and mark through the entity; impacts heard from the camera, in stereo on the UVMC2's jack. |
 | `occlusion_demo` | Three turning meshes, one swinging through the others, with occlusion on and off. |
 | `geometry_card` | A test card to photograph: is a unit the same size in x and y, and where does the glass end. |
 
