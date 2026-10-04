@@ -143,7 +143,7 @@ Only what `game/tacscan` needs is here (~52 files). Other AAE games need more.
 | `tools/wav_to_vsmp.py`, `audio2vsmp.py` | 350 | `samples/*.wav` → `build/tacscan.vsm`. |
 | `roms/`, `samples/` | — | The romset and the 22 source sounds. |
 
-## `examples/physics_demo/`, `soft_demo/`, `bone_demo/`, `scene_demo/`, `fx_demo/`, `occlusion_demo/`, `geometry_card/`
+## `examples/physics_demo/`, `soft_demo/`, `bone_demo/`, `scene_demo/`, `fx_demo/`, `playroom/`, `occlusion_demo/`, `geometry_card/`
 
 | dir | what it is |
 |---|---|
@@ -152,6 +152,7 @@ Only what `game/tacscan` needs is here (~52 files). Other AAE games need more.
 | `bone_demo` | A 13-bone figure walking and running (two clips blended by the stick, phase-shared), up and down steps with feet placed by two-bone IK, a wave clip on one arm. vpybone + vpyik + vpy3d. |
 | `scene_demo` | A scene built only from vpyent entities (crates, balls, walls) under an orbiting camera: one call draws it near to far through the occluder, one steps it; a turning two-faced 3D sign, words painted on the floor, billboard labels over the newest bodies; shots dent and mark through the entity; impacts heard from the camera, in stereo on the UVMC2's jack. |
 | `fx_demo` | A turning shape that comes apart from where it is shot — a wave from the hit, the far side still whole — and the next one assembling edge by edge from flying pieces, handed over to the mesh when the last lands. Cube, octahedron, pyramid. vpyfx + vpy3d ray. `tools/host_render.c` renders a scripted session to SVG. |
+| `playroom` | A small game through the whole SDK: a 13-bone figure walks a hub (blended walk/run, IK feet on steps, vpycam) to four rooms — CRATES (vpyphys/vpyent: knock blocks off a pad), JELLY (vpysoft: steer a blob with the wind), SHAPES (vpyfx disintegrate/assemble), FLYER (terrain, fog, LOD, Doppler on the jack) — each with a card saying what to do; the pieces earned assemble on pedestals and open a finale. Tables sized for it in its Makefile; `tools/host_render.c` plays a scripted session (`ROOM=n`, `IN=...`). |
 | `occlusion_demo` | Three turning meshes, one swinging through the others, with occlusion on and off. |
 | `geometry_card` | A test card to photograph: is a unit the same size in x and y, and where does the glass end. |
 
