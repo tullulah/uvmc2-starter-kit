@@ -99,6 +99,10 @@ int32_t vpy3d_screen_size(int32_t x,int32_t y,int32_t z,int32_t radius);   /* fo
 int  vpy3d_terrain(const int16_t *h,int cols,int rows,int32_t x0,int32_t z0,int32_t cell,int br);
                                                  /* a height map, its hidden lines hidden */
 
+/* the pools: what is built after a mark is given back by releasing to it */
+vpy3d_pool_mark_t vpy3d_pool_mark(void);
+int  vpy3d_pool_release(vpy3d_pool_mark_t mark);     /* 0: mid-build, or a mark past the pools */
+
 /* dents: an object's own mesh, pushed in where it was hit */
 int  vpy3d_mesh_copy(vpy_mesh *dst,const vpy_mesh *src);       /* again = reset, no pool */
 void vpy3d_mesh_dent(vpy_mesh *m,int32_t px,int32_t py,int32_t pz,
@@ -157,6 +161,15 @@ on one console's evidence — photograph the card on a second one first.
 `vpy-c/tools/aspect_check.c` is the host witness: a world square projects with
 w/h = 1.000, and each half angle follows its own axis's clip. Read the field of
 view with `vpy3d_h/v_half_angle` rather than writing "58 degrees" a second time.
+
+**The pools.** Every mesh's vertices, faces and edges live in shared pools sized
+at compile time (`VPY3D_POOL_V/F/FV/E`), which only grow. A game that builds
+everything at start-up never needs more; one whose meshes change — a level's
+geometry — marks the pools after building what lasts (`vpy3d_pool_mark`) and
+releases to the mark on entering the next level (`vpy3d_pool_release`), dropping
+every pointer to the meshes built since first. A build that does not fit is left
+empty (it draws nothing), `mesh_end` returns 0 and `vpy3d_stats()->overflow`
+counts it — not zero means broken. `vpy-c/tools/pool_check.c` holds it to that.
 
 **Dents.** A mesh is shared by everything drawn with it, so an object that can
 be dented takes its own copy first (`vpy3d_mesh_copy`); copying again into it
