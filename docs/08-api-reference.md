@@ -791,8 +791,9 @@ void     uvm2_psg_write(uint32_t reg,uint32_t value);
 uint8_t  uvm2_psg_read(uint32_t reg);
 ```
 
-The console's reset button (06, "The console's reset button"): under 1 s nothing,
-1–3 s and let go restarts the game, 3 s returns to the UVMC2's menu.
+The console's reset button (06, "The console's reset button"), **off unless the game
+builds with `-DUVM2_RESET_BUTTON`**: under 1 s nothing, 1–3 s and let go restarts the
+game, 3 s returns to the UVMC2's menu.
 
 ```c
 void uvm2_mem_write(uint32_t addr,uint32_t data);   /* any bus address; core 1, between frames */
@@ -806,8 +807,8 @@ extern volatile uint32_t uvm2_reset_polls;          /* polls made: proof the wat
 
 **Open (2026-10-04):** heavy games (dkong, `examples/playroom`) reset themselves on
 the UVMC2 with nobody near the button — the watch sees T1 standing still where it is
-not. Until that is found, such a game builds with `-DUVM2_NO_RESET_BUTTON`. Building
-with `-DUVM2_RESET_WATCH_ONLY` keeps the watch and its counters but never acts on it:
+not. Since 2026-10-05 the watch is off by default for that reason. Building
+with `-DUVM2_RESET_BUTTON -DUVM2_RESET_WATCH_ONLY` keeps the watch and its counters but never acts on it:
 the build to read the counters above with the game running.
 
 ### Sound — `uvm2_audio.h`, `uvm2_smp.h`

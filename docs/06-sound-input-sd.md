@@ -299,7 +299,14 @@ the analog read leaves nothing.
 
 ### The console's reset button
 
-Every `.um2` built with this SDK watches the Vectrex's own **reset** button:
+**Off by default since 2026-10-05; a game opts in with `-DUVM2_RESET_BUTTON`.** The
+watch misfires: on the UVMC2 it restarted dkong, the playroom and Major Havoc (on a
+press of button 4) with nobody near the button, and each false press also stops the
+controllers being read for two frames — controls that respond on and off. Off, it
+costs nothing: no bus reads, no warm-start mark, no 4 KB `.data` copy. What follows
+is what it does when a game turns it on.
+
+A `.um2` built with it watches the Vectrex's own **reset** button:
 
 | held | does |
 |---|---|

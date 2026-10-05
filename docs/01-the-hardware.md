@@ -98,6 +98,12 @@ the stock firmware over SWD while it sat in its own menu**, not read off the
 schematic — the schematic reading was off by two and the symptom was a card that
 simply never answered.
 
+**GP22 and GP23 are inputs.** The VIA drives both: PB6 (cart edge pin 35) and
+`/IRQ` (pin 36), per the board's schematic. They sit inside the PIO's `out` range,
+so the stream leaves their direction bits at 0 (`uvm2_bus.c`, `out_dirs`). `/IRQ`
+is wired, so a VIA interrupt (a timer, CA1) does reach the RP2350; nothing in the
+SDK uses it yet. The schematic names GP25 `CE` and GP31 `OE` (pins 16 and 12).
+
 **No reset line, one button.** The console's reset button is not on the cartridge
 edge, and the UVMC2's own button, SW1, is the RP2350's BOOTSEL — it pulls the
 flash's chip select, not a GPIO; `/RUN` has only a pull-up. The SDK sees the
