@@ -91,6 +91,7 @@ them has a long comment there explaining what it cost to learn.
 | `UVM2_DUAL_CORE` | `1` | Core 1 replays the list and reads input while core 0 builds the next frame. |
 | `UVM2_PIO_STREAM` | `1` | The replay goes out through PIO + DMA instead of the CPU poking GPIO. Setting it to 0 does **not** remove the Rust dependency — the beam model is Rust and always links. |
 | `UVM2_HZ` | `50` | Refresh cap. `60` for 60 Hz mains, `0` = present as soon as the list is ready. |
+| `UVM2_SYS_MHZ` | empty | Core clock in MHz, a multiple of 150. Empty = whatever the cartridge's firmware left (150 on the UVMC2). `300` raises the core to 1.30 V / 300 MHz before anything calibrates and keeps the bus, PSRAM and SD at their measured speeds; on Star Wars it took core 0 from ~22–25 to ~12 ms a frame. Tried on one console — opt-in until a second agrees. |
 | `UVM2_CMD_CAPACITY` | 8192 | Commands the list can hold — 3 bytes each, per buffer, two buffers. Watch `stats.dropped`. |
 | `UVM2_LIST_MAX` | 64 in dual core | Words in the PIO stream's buffer. It is only used on the single-core path, so a dual-core game gets the minimum and the 98 KB the crate's 12288 would take stay free. Setting it still wins. |
 | `UVM2_CMDS_IN_PSRAM` | off | Put the command list in PSRAM. Frees SRAM, costs determinism. |

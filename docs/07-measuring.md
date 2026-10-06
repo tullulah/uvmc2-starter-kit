@@ -205,11 +205,27 @@ Hold **buttons 1 and 4 — only those — for two seconds** in any `.um2` game a
 lines appear in the top-left corner; hold them again and they go. Or poke
 `uvm2_hud` over SWD (`swd_var.py $ELF uvm2_hud 1`).
 
-    F50 C12840 D0 Z0          fps, the game's bus cycles this frame, dropped, ramps_clamped
-    S2624 812 N3614 V322      core 0 / core 1 stack peaks, the game's commands and vectors
+    F50.0 C12840 D0 Z0             fps, the game's bus cycles a frame, dropped, ramps_clamped
+    S2624 812 N3614 V322 M150      core 0 / core 1 stack peaks, the game's commands and vectors, core MHz
+
+**The figures hold still for a second.** A number that changes every frame cannot be
+read off a tube, so the HUD accumulates over `uvm2_hud_window_us` of real frame time
+(1,000,000 by default; 0 = every frame) and shows, until the next window closes: F as
+frames over the window (the real fps), C, N and V as per-frame means, and D and Z as
+the **worst** frame in it, so one bad frame is not averaged away.
 
 D and Z must be 0; either one non-zero adds `!!`, and a stack overflow adds `!`
-after the stacks. C, N and V are the game's own, read before the HUD draws.
+after the stacks. C, N and V are the game's own, read before the HUD draws. M is the
+core clock, measured at boot against E — the SDK never sets it (unless
+`UVM2_SYS_MHZ` asks), so this is how to know it without a probe.
+
+A game adds up to two lines of its own by defining `uvm2_hud_game` (weak), called once
+per window with the frames and microseconds it covered — enough to turn its own
+accumulators into per-frame means:
+
+```c
+void uvm2_hud_game(uint32_t frames, uint32_t us, char lines[2][32]);   /* empty line = not drawn */
+```
 
 **The HUD is not free.** Text is expensive on this beam: its two lines cost about
 600–1,000 commands and 4,000–7,000 bus cycles a frame (measured on the host), so a

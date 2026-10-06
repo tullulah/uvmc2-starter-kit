@@ -738,7 +738,9 @@ void     uvm2_emit_raw(uint32_t reg,uint32_t data,uint32_t gap);   /* one raw co
 /* the diagnostics HUD (uvm2_hud.c): buttons 1+4 held 2 s, or poke uvm2_hud */
 extern volatile uint8_t uvm2_hud;              /* 0 off, 1 on */
 extern uvm2_hud_stats_t uvm2_hud_stats;        /* cmds, cycles, vectors it added; drawn, skipped, toggles */
-extern char uvm2_hud_text[2][32];              /* the two lines last drawn, as text */
+extern char uvm2_hud_text[4][32];              /* the lines last drawn, as text (2 SDK + 2 game) */
+extern volatile uint32_t uvm2_hud_window_us;   /* averaging window, 1 s; 0 = every frame */
+void uvm2_hud_game(uint32_t frames,uint32_t us,char lines[2][32]);   /* weak: the game's 2 lines */
 uint32_t uvm2_list_room(void);                 /* commands the game may still add this frame */
 
 /* the last closed frame's list, to the SD card (uvm2_dump.c) — core 0 only */
@@ -754,7 +756,13 @@ reason (`UVM2_DUMP_CORE1`, `_EMPTY`, `_SD`, and then `uvm2_sd_error`).
 
 Runtime knobs (all `volatile`, all with a long comment at their definition):
 `uvm2_zero_jump`, `uvm2_zero_every`, `uvm2_zero_offset`, `uvm2_pacer_cycles`,
-`uvm2_filler_clamp`, `uvm2_hold_y_min/max`, `uvm2_hold_z_min/max`, `uvm2_sweep_t1_max`.
+`uvm2_filler_clamp`, `uvm2_hold_y_min/max`, `uvm2_hold_z_min/max`, `uvm2_sweep_t1_max`,
+and the closing gaps `MT_CLOSE`, `MT_CLOSE_LONG`, `MT_CLOSE_BLANK` — the T1CH gap that
+lets a lit stroke's ramp finish before the beam blanks, before a short jump, a long
+unit and a re-zero (0 = the constants 16 / 21 / 29, never below 11; `-DUVM2_MT_CLOSE*`
+sets them at build time). Those three were copied from a reference capture, not
+measured as minimums: swept in Major Havoc, 11/11/11 opens the vectors and 13/16/20
+nearly holds. The defaults stay.
 
 ### The bus — `uvm2_bus.h`
 
