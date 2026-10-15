@@ -53,6 +53,7 @@ rustup target add thumbv8m.main-none-eabi     # softfp bare-metal Cortex-M33
 | **ffmpeg** | `make snd` in `game/tacscan` — decoding `samples/*.wav` into the `.vsm` bundle. The bundle ships pre-built, so you only need this to regenerate it. |
 | **emscripten** (emsdk) | `make sim` — the WASM build for a browser harness. Not needed for the cartridge. |
 | a host C compiler | `make host` / `make host-prof` — the desktop test harness. Any `cc`. |
+| **picotool** (verified 2.3.0) | uploading, running and debugging over the cartridge's USB (`sdk/tools/uvmc2.py`, gdb with no probe): `docs/13-usb-upload-and-debug.md` |
 | **probe-rs** (verified 0.31.0) + a Pico running **Debugprobe** (verified 2.3.1) | reading `uvm2_stats`, live knobs and the command list over SWD on real hardware (`sdk/uvm2-sdk/tools/`); how to turn a Pico into the probe, install probe-rs and wire it: `docs/07-measuring.md`, "Setting up the probe, from nothing". `arm-none-eabi-gdb` too for `probe.sh` / `load.sh`. |
 
 ## 2. Set up
@@ -114,6 +115,21 @@ For `tacscan` also copy:
 
 If a romset is missing the game says so on screen, with the path it tried. It
 does not fail silently.
+
+### Over USB, without taking the card out
+
+Build with the debug monitor and let the SDK's tool put it on the card and start it,
+from the multicart's menu or over another game built the same way:
+
+```sh
+make uvm2 UVM2_USB_MONITOR=1
+../../sdk/tools/uvmc2.py deploy build_uvm2/hello_uvmc2.um2
+```
+
+`uvmc2.py upload` puts any other file on the card (a romset, a `.vsm`), `uvmc2.py log`
+shows the game's `DEBUG_PRINT` text, and `arm-none-eabi-gdb` debugs it on the console
+with no probe. See [13](docs/13-usb-upload-and-debug.md). The console's **reset**
+button: one press starts the game again, two go back to the menu.
 
 ### Calibrating the console
 

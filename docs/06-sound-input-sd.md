@@ -299,49 +299,53 @@ the analog read leaves nothing.
 
 ### The console's reset button
 
-**Off by default since 2026-10-05; a game opts in with `-DUVM2_RESET_BUTTON`.** The
-watch misfires: on the UVMC2 it restarted dkong, the playroom and Major Havoc (on a
-press of button 4) with nobody near the button, and each false press also stops the
-controllers being read for two frames — controls that respond on and off. Off, it
-costs nothing: no bus reads, no warm-start mark, no 4 KB `.data` copy. What follows
-is what it does when a game turns it on.
+**On in every dual-core game since SDK v1.4.0**; `-DUVM2_NO_RESET_BUTTON` turns it off.
 
-A `.um2` built with it watches the Vectrex's own **reset** button:
-
-| held | does |
+| press | does |
 |---|---|
-| under 1 s | nothing — a brush against the button costs nothing |
-| 1 to 3 s, then let go | **the game starts again** from scratch |
-| 3 s | **back to the UVMC2's menu**, at once |
+| once | **the game starts again** from scratch, a second later |
+| twice within a second | **back to the UVMC2's menu** |
 
-**How it sees the button.** The reset is not wired to the cartridge (on the
-UVMC2's schematic its one button, SW1, is the RP2350's BOOTSEL, and `/RUN` has
-only a pull-up). It does reach the VIA, and a VIA in reset stops its timers. So
-between frames core 1 reads T1's high byte twice, 300 bus cycles apart: if it did
-not move, the button is down. The idea is Ralf's, from his own UVMC2 games.
+**How it sees the button.** The reset is not wired to the cartridge (on the UVMC2's
+schematic its one button, SW1, is the RP2350's BOOTSEL, and `/RUN` has only a
+pull-up). It does reach the VIA, and a reset puts the 6522's registers back to zero —
+DDRB among them — while every frame's command list sets DDRB to `0x9F` at its start
+(`via_setup`). So between frames core 1 reads DDRB once: 0 means the VIA was reset
+since the frame programmed it. The test is Ralf's, from his own UVMC2 games. It is
+read only once a frame has been drawn (before that DDRB is 0 from the start-up), and
+a second pulse within 150 ms is the same press bouncing.
 
-**While it is down, the controllers are not read**, nor for two frames after: a VIA
-in reset reads back zeros, which on the active-low buttons is "all pressed" — a
-short press used to fire buttons 2 and 3 for a frame or two. The game keeps the
-last good reading, and the next frame's list programs the VIA again.
+**A press, not a hold.** The button gives the VIA a pulse, not a reset held while it
+is down: measured on the UVMC2, a short press and one held for three seconds each read
+DDRB = 0 for exactly one frame, and letting go reads nothing. How long it was held
+cannot be told, which is why the menu is two presses and not a long one. (Until
+v1.4.0 the SDK watched T1 instead — a VIA in reset stops its timers — and promised
+"held 3 s: the menu". It never worked, and it misfired: dkong, the playroom and Major
+Havoc restarted with nobody near the button.)
+
+**While the VIA is reset, the controllers are not read**, nor for two frames after: a
+VIA in reset reads back zeros, which on the active-low buttons is "all pressed" — a
+short press used to fire buttons 2 and 3 for a frame or two. The game keeps the last
+good reading, and the next frame's list programs the VIA again.
 
 **Back to the menu** is `rom_reboot(BOOT_TYPE_NORMAL | REBOOT2_FLAG_NO_RETURN_ON_SUCCESS)`,
-as Ralf's games do. For the firmware to come back the short way ("loading", then
-its menu) and not through the console's logo, the Vectrex BIOS must find its
-warm-start mark, `Vec_Cold_Flag` = `$7321` at `$CBFE`: the SDK writes it as core 1
-starts, with the 6809 halted (`uvm2_mem_write`). Without it the console
-cold-started on the way back — confirmed on the UVMC2, 2026-10-03.
+as Ralf's games do. For the firmware to come back the short way ("loading", then its
+menu) and not through the console's logo, the Vectrex BIOS must find its warm-start
+mark, `Vec_Cold_Flag` = `$7321` at `$CBFE`: the SDK writes it as core 1 starts, with
+the 6809 halted (`uvm2_mem_write`).
 
 **A restart** boots the image that is still in SRAM again, through the bootrom
-(`BOOT_TYPE_RAM_IMAGE`, the way the launcher started it). A `no_flash` image keeps
-its initial values in place, so `.data` is copied aside at the top of `main` and
-put back before the reboot; `.bss` and the stacks are cleared by the start-up. A
-`.data` over 4 KB disables the restart and counts it in `uvm2_restart_refused`.
+(`BOOT_TYPE_RAM_IMAGE`, the way the launcher started it). A `no_flash` image keeps its
+initial values in place, so `.data` is copied aside at the top of `main` and put back
+by the game's core before the reboot; `.bss` and the stacks are cleared by the
+start-up. The copy is kept in the PSRAM (the SDK brings it up for this), so it costs
+no SRAM; a `.data` over 2 KB, or no PSRAM, makes one press go to the menu as well, and
+counts it in `uvm2_restart_refused`.
 
-Over SWD: `uvm2_reset_seen` counts the presses noticed, `uvm2_reset_held_us` is how
-long the current one has lasted — so "it never reboots" can be told from "it never
-saw the button". Not on the debug cartridge, whose BIOS has its own way back to
-its menu (all four buttons held a second).
+Over SWD or the debug monitor: `uvm2_reset_seen` counts the presses noticed and
+`uvm2_reset_polls` the reads made, so "it never restarts" can be told from "it never
+saw the button". Not on the debug cartridge, whose BIOS has its own way back to its
+menu (all four buttons held a second).
 
 ## The SD card
 

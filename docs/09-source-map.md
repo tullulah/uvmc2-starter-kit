@@ -40,6 +40,10 @@ Sizes are rounded; they tell you whether a file is a glance or a session.
 | `uvm2_hud.c` | 140 | **The diagnostics HUD**: buttons 1+4 held 2 s put fps, cycles, dropped, ramps_clamped and the stack peaks on the tube; `tools/uvm2_hud_test.c` checks it. |
 | `uvm2_dump.c` | 140 | The last closed frame's command list to the SD card, with a header that proves it whole. Core 0 only; under the debug cart's BIOS the BIOS calls it. |
 | `tools/list_from_rtt.py`, `tools/list_from_sd.py`, `tools/beam_sim.py` | 70+70+150 | The command list the console ran, from an RTT dump or from the card, and what it does to an ideal beam. See [07](07-measuring.md). |
+| `uvm2_monitor.c`, `monitor/` | 300 + 1150 | **The USB debug monitor**: `MONITOR.BIN`, loaded off the card into the PSRAM by a `UVM2_USB_MONITOR=1` build; uploads to the card, the game's text, a debugger (`debug.c`, monitor-mode debug) and gdb's remote protocol on a second port (`gdb.c`). See [13](13-usb-upload-and-debug.md). |
+| `sdbridge/` | 260 | **The SD bridge**: run from SRAM through BOOTSEL from the multicart's menu, writes files to the card with the upload on screen. |
+| `prebuilt/` | — | `MONITOR.BIN` and `sdbridge.elf`, built (they need TinyUSB). |
+| `../tools/uvmc2.py` | 380 | **Over USB from a terminal**: deploy, upload, run, log, gdb. See [13](13-usb-upload-and-debug.md). |
 | `tools/uvm2_sd_test.sh` | 110 | `uvm2_sd.c` against real FAT16 / FAT32 / exFAT (MBR and GPT) images, with `fsck -n` after. macOS. |
 | `tools/stats.py`, `probe.sh`, `load.sh`, `release.sh`, `swd_var.py`, `list_from_ram.py` | 650 | **SWD tools** for a console on the bench: read `uvm2_stats` without halting, read or write any global by name (the live knobs), the command list straight from RAM, the PC of a hang, load an image without the SD card. Which ones halt the core is in [07](07-measuring.md). |
 

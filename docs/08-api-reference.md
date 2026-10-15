@@ -799,25 +799,21 @@ void     uvm2_psg_write(uint32_t reg,uint32_t value);
 uint8_t  uvm2_psg_read(uint32_t reg);
 ```
 
-The console's reset button (06, "The console's reset button"), **off unless the game
-builds with `-DUVM2_RESET_BUTTON`**: under 1 s nothing, 1–3 s and let go restarts the
-game, 3 s returns to the UVMC2's menu.
+The console's reset button (06, "The console's reset button"), **on in every dual-core
+game since v1.4.0** (`-DUVM2_NO_RESET_BUTTON` turns it off): one press starts the game
+again, two within a second return to the UVMC2's menu.
 
 ```c
 void uvm2_mem_write(uint32_t addr,uint32_t data);   /* any bus address; core 1, between frames */
 extern volatile uint32_t uvm2_reset_seen;           /* presses of the reset button noticed */
-extern volatile uint32_t uvm2_reset_held_us;        /* how long the current one has lasted */
-extern volatile uint32_t uvm2_restart_refused;      /* restarts refused: .data over 4 KB */
-extern volatile uint32_t uvm2_reset_held_max_us;    /* the longest "press" seen */
-extern volatile uint8_t  uvm2_reset_last_t1;        /* T1 high byte the two reads agreed on (0x00: VIA in reset) */
-extern volatile uint32_t uvm2_reset_polls;          /* polls made: proof the watch runs */
+extern volatile uint32_t uvm2_reset_polls;          /* DDRB reads made: proof the watch runs */
+extern volatile uint32_t uvm2_restart_refused;      /* restarts refused: .data over 2 KB, or no PSRAM */
 ```
 
-**Open (2026-10-04):** heavy games (dkong, `examples/playroom`) reset themselves on
-the UVMC2 with nobody near the button — the watch sees T1 standing still where it is
-not. Since 2026-10-05 the watch is off by default for that reason. Building
-with `-DUVM2_RESET_BUTTON -DUVM2_RESET_WATCH_ONLY` keeps the watch and its counters but never acts on it:
-the build to read the counters above with the game running.
+`uvm2_reset_held_us`, `uvm2_reset_held_max_us` and `uvm2_reset_last_t1` still exist but
+are no longer kept: a press has no length the cartridge can measure. Building with
+`-DUVM2_RESET_WATCH_ONLY` keeps the watch and its counters but never acts on them (the SD
+bridge's build, which acts on the count itself).
 
 ### Sound — `uvm2_audio.h`, `uvm2_smp.h`
 

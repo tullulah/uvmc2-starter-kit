@@ -107,8 +107,10 @@ SDK uses it yet. The schematic names GP25 `CE` and GP31 `OE` (pins 16 and 12).
 **No reset line, one button.** The console's reset button is not on the cartridge
 edge, and the UVMC2's own button, SW1, is the RP2350's BOOTSEL — it pulls the
 flash's chip select, not a GPIO; `/RUN` has only a pull-up. The SDK sees the
-console's reset through the VIA instead, whose timers stop while it is held
-([06](06-sound-input-sd.md), "The console's reset button").
+console's reset through the VIA instead: a reset puts DDRB back to 0, and every
+frame sets it ([06](06-sound-input-sd.md), "The console's reset button"). The USB
+port is the RP2350's own, and it is enough to upload, run and debug games
+([13](13-usb-upload-and-debug.md)).
 
 ## PSRAM
 
