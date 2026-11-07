@@ -13,7 +13,7 @@ know X" to the one file that answers it. If you are about to port an arcade game
 | [01 — The hardware](01-the-hardware.md) | What a UVMC2 is, what `.um2` means, and why a game drives the Vectrex's VIA itself |
 | [02 — Assembling a project](02-assembling-a-project.md) | Makefile → `uvm2.mk` → CMake → pico-sdk → `.um2`, and how to start a new game |
 | [03 — The command list](03-the-command-list.md) | The 24-bit command, the executor, the frame budget |
-| [04 — Drawing](04-drawing.md) | The beam model: ramps, subunits, re-zeroing, intensity, and what actually costs time |
+| [04 — Drawing](04-drawing.md) | The beam model: ramps, subunits, re-zeroing, intensity, what actually costs time, and raster images and filled shapes |
 | [05 — Dual core, PIO and DMA](05-dual-core-pio-dma.md) | The core split, the PIO program, the DMA ring, and the one timing rule |
 | [06 — Sound, input and the SD card](06-sound-input-sd.md) | The PSG, samples injected into the draw list, controllers, the SD card (FAT + exFAT) |
 | [07 — Measuring](07-measuring.md) | The counters and how to read them over SWD, the host tools, what to measure, and the traps that made earlier measurements lie |
@@ -23,6 +23,7 @@ know X" to the one file that answers it. If you are about to port an arcade game
 | [11 — Porting from MAME](11-porting-from-mame.md) | The three routes, and how to choose between them |
 | [12 — Calibrating a console](12-calibrating-a-console.md) | Why the beam is calibrated per console, the calibration screen (buttons 2+3 at launch), and what each field fixes |
 | [13 — Over USB: upload, run, debug](13-usb-upload-and-debug.md) | `uvmc2.py`, the debug monitor and the SD bridge, gdb with no probe, the game's text, the pause sign |
+| [14 — The OPTIONS screen, the intro card and fitting the picture](14-options-intro-and-fit.md) | The standard package around a finished game: its settings and the OPTIONS screen, remapping the buttons, the Vectrex Studio card, the picture as large as the tube shows |
 
 Two conventions worth knowing before you start:
 

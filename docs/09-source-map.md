@@ -37,6 +37,8 @@ Sizes are rounded; they tell you whether a file is a glance or a session.
 | `uvm2_bus_stream.h` | 46 | The C face of the Rust bus crate. No implementation here. |
 | `memmap_psram.ld` | 350 | Opt-in: link the whole image into PSRAM. Its comments are the best account of what does and does not belong in external memory. |
 | `tools/*.c`, `tools/*.py` | ~1500 | Host-side measurement tools. Not part of any build. See [07](07-measuring.md). |
+| `uvm2_options.c` | 360 | **The standard OPTIONS screen** shown before a game's `main` (`UVM2_SETTING_OPTIONS`): screen, sound, refresh, brightness, CONTROLS (the button map), calibration, start in menu. |
+| `uvm2_intro.c` | 255 | **The Vectrex Studio card** before the OPTIONS screen, and its jingle on the jack (`UVM2_INTRO=1/sd/0`). |
 | `uvm2_hud.c` | 140 | **The diagnostics HUD**: buttons 1+4 held 2 s put fps, cycles, dropped, ramps_clamped and the stack peaks on the tube; `tools/uvm2_hud_test.c` checks it. |
 | `uvm2_dump.c` | 140 | The last closed frame's command list to the SD card, with a header that proves it whole. Core 0 only; under the debug cart's BIOS the BIOS calls it. |
 | `tools/list_from_rtt.py`, `tools/list_from_sd.py`, `tools/beam_sim.py` | 70+70+150 | The command list the console ran, from an RTT dump or from the card, and what it does to an ideal beam. See [07](07-measuring.md). |
@@ -76,7 +78,7 @@ Sizes are rounded; they tell you whether a file is a glance or a session.
 | file | ~lines | what it is |
 |---|---|---|
 | `vpy-c/include/vpy.h` | 160 | The game library's API, with the asset formats described per group. |
-| `vpy-c/vpy.c` | 1700 | Its implementation: shapes, `.vec`/`.vanim` readers, text, math, the level and enemy runtimes, and the **stroke buffer** every drawing call goes through (flushed once per frame). |
+| `vpy-c/vpy.c` | 2180 | Its implementation: shapes, the **raster and filled shapes** (`DRAW_RASTER`, `DRAW_FILLED_POLYGON`, `FILL_ROWS`), `.vec`/`.vanim` readers, text, math, the level and enemy runtimes, and the **stroke buffer** every drawing call goes through (flushed once per frame). `tools/fill_check.c` checks the fills. |
 | `vpy-c/include/vpy3d.h`, `vpy-c/vpy3d.c` | 450+1390 | A small 3D layer in C (meshes, camera, projection, a per-axis window), drawing through the stroke buffer, plus the **screen-space occluder** that lets one solid hide another, dents, marks where shots landed, a ray against a mesh, and level of detail. The header's occlusion block is the manual. |
 | `vpy-c/include/vpyphys.h`, `vpy-c/vpyphys.c` | 285+2000 | **Rigid bodies, gravity, collisions, ray casts, joints.** Spheres, boxes and convex hulls; ball joints and hinges. Integer, deterministic. The header says what is measured. |
 | `vpy-c/include/vpyfx.h`, `vpy-c/vpyfx.c` | 95+325 | **Sparks, bursts and shattering**, one stroke per piece, within a stroke budget at the lowest priority. |
@@ -194,6 +196,8 @@ for ever).
 | how an arcade game is ported | [10](10-porting-an-aae-game.md), then `game/tacscan/src/aae_machine.c` |
 | how to go from a MAME driver | [11](11-porting-from-mame.md) |
 | what is calibrated per console, and how | [12](12-calibrating-a-console.md), then `sdk/uvm2-sdk/uvm2_config.h` |
+| how a game gets the OPTIONS screen, the intro card, remappable buttons, a picture fitted to the tube | [14](14-options-intro-and-fit.md), then `sdk/uvm2-sdk/uvm2_config.h` and `uvm2_draw.h` |
+| how to fill an area, or draw a shaded image, on a vector screen | [04](04-drawing.md) "Raster images and filled shapes", then `sdk/vpy-c/include/vpy.h` |
 | why a solid is see-through, or the occluder seems not to work | `sdk/vpy-c/include/vpy3d.h` ("ONE SOLID HIDING ANOTHER"), then [08](08-api-reference.md) "3D" |
 | what shape a unit is on the glass, and where the glass ends | `examples/geometry_card/src/main.c`, photographed; [08](08-api-reference.md) "3D" |
 | why text leans into diagonals on some consoles | [12](12-calibrating-a-console.md), "The zero" |

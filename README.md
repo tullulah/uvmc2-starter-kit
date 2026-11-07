@@ -140,6 +140,25 @@ with 4**: the calibration screen opens first. Button 4 saves and starts the game
 Every game built with this SDK then uses that calibration.
 [docs/12](docs/12-calibrating-a-console.md) explains the screen.
 
+### The OPTIONS screen, the intro card, the picture's fit
+
+A finished game usually wants the standard package: the Vectrex Studio card, an OPTIONS
+screen (the screen turned for a console on its side, sound on the jack or the console,
+the refresh, the brightness, the buttons remapped), and its picture as large as the tube
+shows. One function declares it, and the SDK does the rest:
+
+```c
+void uvm2_game_settings(void)
+{
+    uvm2_config_game("MYGAME", UVM2_SETTING_OPTIONS | UVM2_SETTING_ROTATE);
+    uvm2_config_title("MY GAME");
+}
+```
+
+[docs/14](docs/14-options-intro-and-fit.md) has all of it. For filled shapes and raster
+images (`DRAW_RASTER`, `DRAW_FILLED_POLYGON`, `FILL_ROWS`), see
+[docs/04](docs/04-drawing.md#raster-images-and-filled-shapes).
+
 ---
 
 ## 5. Layout

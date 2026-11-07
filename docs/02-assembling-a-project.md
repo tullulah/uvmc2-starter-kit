@@ -90,7 +90,8 @@ them has a long comment there explaining what it cost to learn.
 |---|---|---|
 | `UVM2_DUAL_CORE` | `1` | Core 1 replays the list and reads input while core 0 builds the next frame. |
 | `UVM2_PIO_STREAM` | `1` | The replay goes out through PIO + DMA instead of the CPU poking GPIO. Setting it to 0 does **not** remove the Rust dependency — the beam model is Rust and always links. |
-| `UVM2_HZ` | `50` | Refresh cap. `60` for 60 Hz mains, `0` = present as soon as the list is ready. |
+| `UVM2_HZ` | `50` | Refresh cap: any rate from 20 to 100 (an arcade game's own, 38 for Armor Attack), or `0` = present as soon as the list is ready. It is the OPTIONS screen's first REFRESH choice. |
+| `UVM2_INTRO` | `1` | The Vectrex Studio card before the OPTIONS screen: `1` with the jingle in the image (~36 KB of SRAM), `sd` with the jingle read off the card from `VSJINGLE.BIN` (~2 KB; silent without the file), `0` none. Only games with `UVM2_SETTING_OPTIONS` show it ([14](14-options-intro-and-fit.md)). |
 | `UVM2_SYS_MHZ` | empty | Core clock in MHz, a multiple of 150. Empty = whatever the cartridge's firmware left (150 on the UVMC2). `300` raises the core to 1.30 V / 300 MHz before anything calibrates and keeps the bus, PSRAM and SD at their measured speeds; on Star Wars it took core 0 from ~22–25 to ~12 ms a frame. Tried on one console — opt-in until a second agrees. |
 | `UVM2_CMD_CAPACITY` | 8192 | Commands the list can hold — 3 bytes each, per buffer, two buffers. Watch `stats.dropped`. |
 | `UVM2_LIST_MAX` | 64 in dual core | Words in the PIO stream's buffer. It is only used on the single-core path, so a dual-core game gets the minimum and the 98 KB the crate's 12288 would take stay free. Setting it still wins. |
@@ -98,6 +99,8 @@ them has a long comment there explaining what it cost to learn.
 | `UVM2_ROMZIP_IN_PSRAM` | auto | Put the SD romset buffer in PSRAM (write-once, read-once — the ideal case). |
 | `UVM2_SRCS_DROP` | `libc_stub.c` | Sources to drop on this path only (the pico-sdk brings newlib; hand-written stubs collide). |
 | `UVM2_UM2_ONLY` | empty | Flags that apply to the `.um2` and not to a shared cartridge build. |
+| `UVM2_HEAP_SIZE` | the pico-sdk's | The C heap's reservation, for an image that links no `malloc` and needs the SRAM. |
+| `UVM2_WORKER_STREAM` | off | Opt-in: a core-1 worker's pass fed to the PIO in chunks by two chained DMA channels (`uvm2_stream_finish`, `uvm2_stream_running`, `uvm2_frame_can_begin`). |
 
 ### Dual core and PIO are not optional
 
@@ -127,6 +130,12 @@ holds a game back only when it has room to spare.
 Two things to keep apart when comparing: refreshing more often also makes the
 picture **brighter**, because it is more passes per second over the same
 phosphor. If it "looks better at 60", some of that is brightness, not smoothness.
+
+**A fixed rate is held** (v1.4.12 on). Between frames core 1 pads the list with a filler up
+to what really fits in the period, measured each frame (`uvm2_filler_cap`); before, it
+aimed at the whole period at a nominal 1.5 MHz, no frame ever fitted, and a game at 38 Hz
+ran at 36.3. With the OPTIONS screen the player can change the rate (REFRESH); the game's
+own comes first ([14](14-options-intro-and-fit.md)).
 
 ## What ends up in the image
 

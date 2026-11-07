@@ -70,6 +70,12 @@ errors do not accumulate along a chain. (On fine enough input, Q6 and finer, the
 debt stops helping and starts adding error, so it is turned off there; on coarse
 input it is what keeps a long chain straight.)
 
+**A jump's debt is parked** (v1.4.8). A jump rounds too, and its remainder used to be paid
+by the first lit strokes of the object it lands on, which bent them. Now the soft start
+takes off what its priming unit really travels, and a jump's debt waits for the next jump.
+Measured on kuroishi's S: a deformation of 290 down to 4. `-DJUMP_DEBT_PARKS=0` brings the
+old behaviour back.
+
 ## Re-zeroing
 
 The integrators drift. Two safety nets, both in `uvm2_draw.c`:
@@ -123,6 +129,52 @@ eats segments that were the continuation of a chain. The number of jumps is set
 by **how many disjoint polylines the game draws**, and reordering can only
 shorten them, not remove them. `tools/uvm2_order.c` measures all the variants if
 you want the numbers for your own scene.
+
+## Raster images and filled shapes
+
+Two ways to fill an area on a vector screen, from v1.4.14, both the technique Exidy's
+vector boards used for Top Gunner's title and explosions, written again from what that
+board draws.
+
+**The beam never stops along a row.** A row of a raster is one sweep that only changes its
+brightness between runs, and the next row goes back the other way (a serpentine), so from
+one row to the next there is only a short jump. On the Vectrex a stroke costs about the
+same however short, and a jump costs as much as a stroke: what makes a fill affordable is
+having few of either, not few pixels.
+
+```c
+static const unsigned char blob[] = { 6, 3,          /* 6 x 3 pixels */
+    1, 1,  4, 127,                                    /* row 0: from pixel 1, 4 at 127 */
+    0, 3,  2, 127, 2, 64, 2, 127,                     /* row 1: bright, dim, bright */
+    1, 1,  4, 127 };                                  /* row 2 */
+DRAW_RASTER(blob, -20, 10, 120, 240, 0, 127);         /* pixel 120 x 240 device units */
+```
+
+* **The pixel is a size, not a grid.** `pw`/`ph` are in deflection units: the same image
+  drawn larger or smaller is the same data with another pixel (an explosion that grows).
+* **`shear` is the italic**, rise per unit across in Q8, and it climbs in whole pixels:
+  each run rises its length times the shear, rounded, so a short run stays level. That
+  stepping is what the arcade's title looks like; a continuous slant looks smoother and is
+  not it. With a shear the runs keep their boundaries (that is where the steps go); level,
+  runs of the same brightness next to each other join into one stroke.
+* **Brightness 0 is a gap**, not a dark stroke: the row continues further along.
+
+`DRAW_FILLED_POLYGON(xy, n, b)` fills any simple polygon, concave ones as several runs,
+with slanted parallel lines in the same serpentine, each line joined to the next along the
+polygon's own edge, lit: the edge comes out traced and the beam hardly ever turns off (96
+to 99% of the strokes start where the last one ended, `tools/fill_check.c`). A join longer
+than a few spacings, along a nearly flat edge, is left as a jump. `FILL_STYLE(spacing,
+slant)` sets both for what follows (0, 0 = the arcade's: 96 deflection units and 1/8).
+`DRAW_FILLED_RECT` is this fill.
+
+**`FILL_ROWS(n)`** keeps one row in every n of both. A fill is the brightest and the most
+expensive thing on the screen; thinning it is the one lever that keeps its shape and its
+levels. Top Gunner's port, after trying a single brightness for the whole fill (its letters
+became filled boxes: they are cut apart by runs drawn almost dark) and scaling the levels
+(it looked worse), settled on 2. The raster's rows are counted through the frame, in the
+order they are drawn, so an image drawn as several pieces is thinned evenly across them;
+counted per image, the rows where two pieces meet were both dropped and the letters came
+out cut.
 
 ## Things that are not what they look like
 

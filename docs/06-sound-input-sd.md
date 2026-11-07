@@ -306,6 +306,15 @@ the analog read leaves nothing.
 | once | **the game starts again** from scratch, a second later |
 | twice within a second | **back to the UVMC2's menu** |
 
+**While it waits for a second press the screen says RESETTING** (v1.4.7,
+`uvm2_restart_pending`): the game's code still runs, but its frame is dropped and replaced,
+so a reset no longer looks like a flicker, the game carrying on, and then a restart. **The
+restart goes into the game, not into the calibration wizard** (v1.4.6): the reset clears the
+VIA, and core 1's first button read went through a port B set to nothing, read every button
+pressed, and took that for buttons 2+3 held at launch. Before the first frame a DDRB of 0 is
+now set to 0x9F for the read. A game with the OPTIONS screen restarts through the Vectrex
+Studio card and the screen ([14](14-options-intro-and-fit.md)).
+
 **How it sees the button.** The reset is not wired to the cartridge (on the UVMC2's
 schematic its one button, SW1, is the RP2350's BOOTSEL, and `/RUN` has only a
 pull-up). It does reach the VIA, and a reset puts the 6522's registers back to zero —

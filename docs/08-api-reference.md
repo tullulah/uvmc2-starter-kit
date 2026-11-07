@@ -51,10 +51,45 @@ void vpy_draw_line(int x0,int y0,int x1,int y1,int b);
 void vpy_draw_circle(int cx,int cy,int r,int b);              /* 16 segments */
 void vpy_draw_ellipse(int cx,int cy,int rx,int ry,int b);     /* 16 segments */
 void vpy_draw_rect(int x,int y,int w,int h,int b);            /* x,y = lower-left */
-void vpy_draw_filled_rect(int x,int y,int w,int h,int b);     /* hatched, 3 units apart */
+void vpy_draw_filled_rect(int x,int y,int w,int h,int b);     /* the fill below, 4 corners */
 void vpy_draw_polygon(const int *xy,int n,int b);             /* n vertices, xy[2n] */
 void vpy_draw_line_dev(int32_t x0,int32_t y0,int32_t x1,int32_t y1,int b);  /* deflection units */
 ```
+
+Filled shapes and raster images (v1.4.14), the way Exidy's vector boards draw them:
+
+```c
+void vpy_draw_filled_polygon(const int *xy,int n,int b);          /* VPy units, up to 32 vertices */
+void vpy_draw_filled_polygon_dev(const int32_t *xy,int n,int b);  /* deflection units */
+void vpy_fill_style(int spacing,int slant_q8);   /* 0,0 = the arcade's: 96 apart, slant 1/8 */
+void vpy_fill_rows(int n);                       /* one row in every n of both; 1 = all */
+void vpy_draw_raster(const unsigned char *img,int x,int y,int pw,int ph,int shear_q8,int b);
+void vpy_draw_raster_dev(const unsigned char *img,int32_t x,int32_t y,int pw,int ph,int shear_q8,int b);
+```
+
+**A filled polygon** (`DRAW_FILLED_POLYGON`, any simple polygon, concave too) is slanted
+parallel lines drawn as one continuous path: each runs the other way from the one before,
+joined along the polygon's own edge, lit, so the beam hardly ever turns off. `spacing` is
+in deflection units (127 to a VPy unit), `slant_q8` the rise per unit across in Q8.
+`DRAW_FILLED_RECT` is this fill since v1.4.14 (it was an outline and level lines, each a
+separate stroke): a game using it looks different after rebuilding.
+
+**A raster image** (`DRAW_RASTER`) is rows of runs, so many pixels at one brightness:
+
+```
+width, height                                  in pixels
+then each row, top to bottom:   start pixel, run count,
+                                then per run: length (pixels), brightness 0..127 (0 = a gap)
+```
+
+placed with its top-left at (x, y). A pixel is `pw` x `ph` deflection units, so the same
+data is drawn larger or smaller; `shear_q8` slants the rows, each run rising in whole
+pixels. The beam sweeps a row changing only its brightness, and the rows alternate
+direction, so between rows there is only a short jump. Runs of one brightness next to each
+other become one stroke when the image is level. `FILL_ROWS(n)` keeps one row in every n
+(less light, fewer lines, shapes and levels kept); the raster's rows are counted through
+the frame, so an image drawn in several pieces is thinned evenly. See
+[04 — Drawing](04-drawing.md#raster-images-and-filled-shapes).
 
 **Every drawing call goes through a stroke buffer** (1024 strokes) and reaches
 `v_directDraw32` only when the frame is flushed: by `vpy_run`, `vpy_frame_begin`
@@ -722,12 +757,18 @@ void uvm2_draw_prime_holds(void);
 void uvm2_draw_rotate(int enable); /* 90 degrees, for horizontal arcade games */
 int  uvm2_draw_rotated(void);
 
+/* the game's picture fitted to the tube, upright or turned (v1.4.11; UVM2_HAS_VIEW_FIT) */
+void uvm2_view_field(int x0,int x1,int y0,int y1,int aw,int ah);   /* its box, and its shape aw:ah */
+void uvm2_view_map(int32_t *x,int32_t *y);                          /* the mapping in force */
+
 void uvm2_draw_delta_patterned(int dx,int dy,const unsigned char *gaps,int n);
 int  uvm2_draw_sweep_sr(int dx,int dy,const unsigned char *pattern,int n,int step);
 
-void     uvm2_set_refresh(unsigned hz);   /* 50, 60, or 0 = free-running */
+void     uvm2_set_refresh(unsigned hz);   /* 20..100 Hz, or 0 = free-running */
 unsigned uvm2_current_refresh(void);
 int      uvm2_refresh_fits(void);         /* did the last frame fit the cap? */
+extern volatile uint32_t uvm2_filler_cap;        /* list cycles that fit the period, measured (v1.4.12) */
+extern volatile uint32_t uvm2_restart_pending;   /* reset pressed once, waiting for a second (v1.4.7) */
 
 uint32_t uvm2_list_cycles(void);          /* bus cycles in the list so far */
 uint32_t uvm2_list_commands(void);
@@ -748,6 +789,21 @@ int  uvm2_dump_list(const char *path);                       /* 1 if written */
 int  uvm2_dump_list_on_buttons(const char *path,uint8_t mask);   /* once per press */
 extern uvm2_dump_diag_t uvm2_dump_diag;                      /* ok, failed, error, commands */
 ```
+
+**The fit** (`uvm2_view_field`): everything `v_directDraw32` draws is scaled and centred so
+the box is as large as the tube shows without changing its shape, its width across the tube
+upright and along it with the console on its side. The tube is the console's calibration
+(WIN X, WIN Y, ASPECT), or the photographed one on a console still on the stock square.
+UVMC2 only; without a call nothing changes. See [14](14-options-intro-and-fit.md).
+
+**A fixed refresh is held** (v1.4.12): between frames the SDK pads the list with a filler
+up to what really fits in the period, measured by core 1 each frame (the lowest over the
+last second, `uvm2_filler_cap`), so a game at 38 Hz runs at 38.0. Before, the filler aimed
+at the whole period at a nominal 1.5 MHz, no frame fitted, and the game ran free below its
+rate.
+
+**The brightness gain** (`uvm2_setting_bright`, percent) multiplies every intensity in
+`uvm2_draw_intensity`; `uvm2_draw_intensity_current()` still returns what the game asked.
 
 The dump is the list the console was given, for `tools/list_from_sd.py` and
 `beam_sim.py` (see `07-measuring.md`). The screen goes dark while the card
@@ -917,12 +973,14 @@ struct uvm2_config {
     int32_t hold_y_min, hold_y_max;   /* Y sample-and-hold, in E cycles */
     int32_t neg_rate_x, neg_rate_y;   /* negative-rate DAC trim, 1/256 */
     int32_t drift_x, drift_y;         /* per-jump drift, 1/256 */
-    int32_t hz;           /* 50, 60, or 0 = free */
+    int32_t hz;           /* 0 = free, or 20..100 (the game's own UVM2_HZ first) */
     int32_t start_menu;   /* 1 = menu on power-up */
     int32_t rotate;       /* 1 = drawing rotated 90 degrees */
     int32_t audio;        /* 0 = the jack, 1 = the console's chip (game setting) */
     int32_t aspect_q8;    /* the screen's shape: x against y, 256 = 1:1 */
     int32_t win_x, win_y; /* what the tube shows, half extents in deflection units */
+    int32_t bright_pct;   /* brightness gain, percent, 100 = as asked (game setting) */
+    int32_t buttons;      /* the button map, four digits: 1234 = as wired (game setting) */
 };
 int  uvm2_config_load(void);
 int  uvm2_config_save(void);
@@ -933,6 +991,20 @@ void uvm2_config_boot_combo(void);          /* runtime: buttons 2+3 held at laun
 extern volatile int32_t uvm2_boot_combo;    /* -1 unchecked, 0 not held, 1 ran, 2 could not check */
 void uvm2_config_game(const char *name,unsigned settings);
 extern volatile int uvm2_have_calibration;
+
+/* the game's side (v1.4.8 on): declared in uvm2_game_settings(), which the runtime calls
+ * before main -- see 14-options-intro-and-fit.md */
+void uvm2_game_settings(void);                       /* yours: declare the game's settings here */
+void uvm2_config_title(const char *title);           /* the OPTIONS screen's title */
+void uvm2_config_buttons(const char *b1,const char *b2,const char *b3,const char *b4);
+int  uvm2_config_native_hz(void);                    /* the rate it was built for (UVM2_HZ) */
+extern volatile int32_t uvm2_setting_hz, uvm2_setting_menu, uvm2_setting_rotate;
+extern volatile int32_t uvm2_setting_audio, uvm2_setting_bright, uvm2_setting_buttons;
+int     uvm2_buttons_set(int32_t map);               /* 0 = not the four buttons once each */
+uint8_t uvm2_buttons_remap(uint8_t pressed);         /* console bits -> the game's */
+int  uvm2_options_menu(void);                        /* the OPTIONS screen, from a game */
+void uvm2_intro(void);                               /* the Vectrex Studio card */
+#define UVM2_HAS_BUTTON_MAP 1                        /* v1.4.11 on */
 ```
 
 These belong to the machine the cartridge is plugged into, not to the game. A
@@ -962,18 +1034,28 @@ OR of:
 | `UVM2_SETTING_MENU` | 2 | menu on power-up; with it off, button 4 still forces the menu → `start_menu` |
 | `UVM2_SETTING_ROTATE` | 4 | drawing rotated 90° for a horizontal arcade game → `rotate` |
 | `UVM2_SETTING_AUDIO` | 8 | sound out of the jack or the console's chip → `audio` |
+| `UVM2_SETTING_BRIGHT` | 16 | a brightness gain in percent on every intensity → `bright_pct` |
+| `UVM2_SETTING_OPTIONS` | 32 | the SDK's OPTIONS screen before `main`; brings HZ, MENU, BRIGHT and BUTTONS |
+| `UVM2_SETTING_BUTTONS` | 64 | the button map and its CONTROLS line → `buttons` |
 
-The runtime has already loaded the console's file before your `main` runs, so call
-`uvm2_config_load()` again after declaring, and the game's file is layered on top.
-Declare only what means something in your game: a vertical game should not offer
-`ROTATE`. Not calling it at all gives one file, and no game settings in the
-wizard. The buttons-2+3 wizard opens before `main`, so it shows only the
-console's fields; a game's own menu that calls `uvm2_config_wizard()` shows both.
+**Declare them in `uvm2_game_settings()`.** The runtime calls it before your `main`, so the
+game's file is layered on top of the console's before anything runs, and the OPTIONS
+screen and the wizard show the game's fields too. Declare only what means something in
+your game: a vertical game should not offer `ROTATE`. Not declaring anything gives one
+file, and no game settings.
 
 ```c
-uvm2_config_game("MYGAME", UVM2_SETTING_HZ | UVM2_SETTING_MENU);
-uvm2_config_load();
+void uvm2_game_settings(void)
+{
+    uvm2_config_game("MYGAME", UVM2_SETTING_OPTIONS | UVM2_SETTING_ROTATE);
+    uvm2_config_title("MY GAME");
+}
 ```
+
+(Before v1.4.8 a game called `uvm2_config_game()` from `main` and then `uvm2_config_load()`
+again. That still works, but the wizard and the OPTIONS screen, which open before `main`,
+do not see the game's settings.) The OPTIONS screen, the CONTROLS line and the Vectrex
+Studio card are in [14 — The OPTIONS screen, the intro card and fitting the picture](14-options-intro-and-fit.md).
 
 ### The PIO stream — `uvm2_bus_stream.h`
 
