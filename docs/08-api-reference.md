@@ -920,13 +920,12 @@ The DAC is stereo: one 32-bit word of the ring is a frame, left in the high half
 separate (Star Wars: the POKEYs and a voice) calls `uvm2_jack_write_lr`. Same
 ring, same DMA, same `uvm2_jack_space()`.
 
-**USB headphones (v1.4.15 on).** With SOUND USB on the OPTIONS screen
-(`uvm2_setting_audio_usb`), the same calls send the sound to headphones on the
-cartridge's USB-C instead of the DAC, which is not started: the cartridge is the USB
-host, powers them, picks their format (UAC 1 or 2, 16-bit stereo if they have it) and
-resamples 32 kHz to theirs. They can be plugged in and out at any time; until some are,
-`uvm2_jack_space()` still asks for a frame's worth, so the game keeps its time. A game
-calls nothing new. `uvm2_usbaudio.h` has `uvm2_usbaudio_report()`, one line of what the
+**USB headphones (v1.4.18: by themselves).** While headphones are plugged into the
+cartridge's USB-C, the same calls send the sound to them and the DAC is stopped; unplugged,
+the DAC takes over again. Nothing to choose: the cartridge is the USB host from the jack's
+first sound on, powers them, picks their format (UAC 1 or 2, 16-bit stereo if they have it)
+and resamples 32 kHz to theirs, and the stream borrows the jack's ring, so it costs a game
+no 8 KB of its own. A game calls nothing new. `uvm2_usbaudio.h` has `uvm2_usbaudio_report()`, one line of what the
 port sees, for a test screen. Not with `UVM2_USB_MONITOR`, which owns the port.
 
 It runs on the system clock measured against the Vectrex's E at boot. The per-game
@@ -1016,7 +1015,7 @@ void uvm2_config_buttons(const char *b1,const char *b2,const char *b3,const char
 int  uvm2_config_native_hz(void);                    /* the rate it was built for (UVM2_HZ) */
 extern volatile int32_t uvm2_setting_hz, uvm2_setting_menu, uvm2_setting_rotate;
 extern volatile int32_t uvm2_setting_audio, uvm2_setting_bright, uvm2_setting_buttons;
-extern volatile int32_t uvm2_setting_audio_usb;      /* v1.4.15: with audio 0, 1 = USB headphones */
+extern volatile int32_t uvm2_setting_audio_usb;      /* v1.4.15-17's SOUND USB; unread from v1.4.18 */
 int     uvm2_buttons_set(int32_t map);               /* 0 = not the four buttons once each */
 uint8_t uvm2_buttons_remap(uint8_t pressed);         /* console bits -> the game's */
 uint8_t uvm2_pad_actions(void);   /* v1.4.17: the game's six, bit 4 stick-up action, bit 5 down */

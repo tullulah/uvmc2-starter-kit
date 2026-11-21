@@ -9,8 +9,8 @@ SDK (`sdk/tools/uvmc2.py`, `sdk/uvm2-sdk/monitor`, `sdk/uvm2-sdk/sdbridge`,
 Needs **picotool** (macOS: `brew install picotool`) and Python 3. macOS and Linux;
 not Windows yet.
 
-The same port can be the game's **sound out**: with SOUND USB on the OPTIONS screen
-(v1.4.15 on) the cartridge is a USB host for headphones while the game runs, so nothing
+The same port can be the game's **sound out**: from v1.4.18 a game that sounds out of the
+jack makes the cartridge a USB host for headphones from its first sound on, so nothing
 here reaches it until it is back in the multicart's menu (power it off with the USB cable
 out: the port powers the cartridge). A build with `UVM2_USB_MONITOR=1` keeps the port for
 the monitor and has no USB sound.
