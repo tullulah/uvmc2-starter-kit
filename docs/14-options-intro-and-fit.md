@@ -35,7 +35,7 @@ void uvm2_game_settings(void)
 | `UVM2_SETTING_HZ` | 1 | REFRESH: the game's own rate, 50, 60 or MAX (`uvm2_setting_hz`) |
 | `UVM2_SETTING_MENU` | 2 | START IN MENU / IN GAME (`uvm2_setting_menu`) |
 | `UVM2_SETTING_ROTATE` | 4 | SCREEN VERTICAL / HORIZONTAL (`uvm2_setting_rotate`) |
-| `UVM2_SETTING_AUDIO` | 8 | SOUND JACK / VECTREX (`uvm2_setting_audio`) |
+| `UVM2_SETTING_AUDIO` | 8 | SOUND JACK / VECTREX / USB (`uvm2_setting_audio`, `uvm2_setting_audio_usb`) |
 | `UVM2_SETTING_BRIGHT` | 16 | BRIGHTNESS, a gain in percent (`uvm2_setting_bright`) |
 | `UVM2_SETTING_OPTIONS` | 32 | the standard OPTIONS screen; brings HZ, MENU, BRIGHT and BUTTONS |
 | `UVM2_SETTING_BUTTONS` | 64 | the CONTROLS line, the button map (`uvm2_setting_buttons`) |
@@ -43,6 +43,13 @@ void uvm2_game_settings(void)
 Declare only what means something in your game. A vertical arcade game does not offer
 SCREEN; a game with no jack sound does not offer SOUND. `ROTATE` and `AUDIO` appear on the
 OPTIONS screen only when declared.
+
+**SOUND has three values (v1.4.15 on), one at a time:** JACK, the cartridge's DAC; VECTREX,
+the console's own sound chip; USB, headphones on the cartridge's USB-C. A game still reads
+only `uvm2_setting_audio`: 0 means "sound out of the cartridge" for both JACK and USB, so it
+starts the jack driver as before, and the driver sends the sound to the DAC or to the
+headphones as `uvm2_setting_audio_usb` says. Nothing to change in a game that already offers
+SOUND; rebuild it. See [06](06-sound-input-sd.md) and the jack in [08](08-api-reference.md).
 
 ## The OPTIONS screen
 
@@ -53,7 +60,7 @@ With `UVM2_SETTING_OPTIONS` the runtime shows the screen before `main`:
 
         PLAY
         SCREEN VERTICAL          only with UVM2_SETTING_ROTATE
-        SOUND JACK               only with UVM2_SETTING_AUDIO
+        SOUND JACK               only with UVM2_SETTING_AUDIO (JACK / VECTREX / USB)
         REFRESH 50 HZ
         BRIGHTNESS 100
         CONTROLS
