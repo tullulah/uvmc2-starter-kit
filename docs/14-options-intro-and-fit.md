@@ -10,8 +10,8 @@ cartridge the calls exist and do nothing that would change the game.
 ## The settings a game declares
 
 The settings that belong to the **console** (the beam calibration) live in
-`config/uvm2.cfg` and are shared by every game ([12](12-calibrating-a-console.md)). The
-ones that belong to the **game** live in `config/<NAME>.CFG`, layered on top, and each game
+`.conf/uvm2.cfg` and are shared by every game ([12](12-calibrating-a-console.md)). The
+ones that belong to the **game** live in `.conf/<NAME>.CFG`, layered on top, and each game
 declares which ones it has. It does so in a function the runtime calls before the game's
 `main`, so they are loaded before anything is drawn:
 
@@ -39,6 +39,7 @@ void uvm2_game_settings(void)
 | `UVM2_SETTING_BRIGHT` | 16 | BRIGHTNESS, a gain in percent (`uvm2_setting_bright`) |
 | `UVM2_SETTING_OPTIONS` | 32 | the standard OPTIONS screen; brings HZ, MENU, BRIGHT and BUTTONS |
 | `UVM2_SETTING_BUTTONS` | 64 | the CONTROLS line, the button map (`uvm2_setting_buttons`) |
+| `UVM2_SETTING_TURN` | 128 | TURN WITH STICK / BUTTONS (`uvm2_setting_turn`), v1.4.17 on |
 
 Declare only what means something in your game. A vertical arcade game does not offer
 SCREEN; a game with no jack sound does not offer SOUND. `ROTATE` and `AUDIO` appear on the
@@ -50,6 +51,15 @@ only `uvm2_setting_audio`: 0 means "sound out of the cartridge" for both JACK an
 starts the jack driver as before, and the driver sends the sound to the DAC or to the
 headphones as `uvm2_setting_audio_usb` says. Nothing to change in a game that already offers
 SOUND; rebuild it. See [06](06-sound-input-sd.md) and the jack in [08](08-api-reference.md).
+The headphones' own volume buttons move the volume (v1.4.16), and from v1.4.17 it is kept: it
+is the console's setting (`usb_volume` in `.conf/uvm2.cfg`), so every game starts where it was
+left.
+
+**TURN (v1.4.17 on)** is for a game that can turn with the stick or with two buttons, as the
+cabinets of Asteroids and its kin did. It declares `UVM2_SETTING_TURN`, names its other layout
+with `uvm2_config_turn(b1, b2, b3, b4, sideways, up, down)`, and reads `uvm2_setting_turn`;
+`uvm2_config_stick(sideways, up, down)` names what the stick does on the CONTROLS screen.
+`#ifdef UVM2_HAS_TURN`.
 
 ## The OPTIONS screen
 
@@ -69,7 +79,7 @@ With `UVM2_SETTING_OPTIONS` the runtime shows the screen before `main`:
 ```
 
 The stick up and down picks a line; left, right or button 1 changes it; button 1 on PLAY,
-or button 4 anywhere, starts the game. A change is saved to `config/<NAME>.CFG` as it is
+or button 4 anywhere, starts the game. A change is saved to `.conf/<NAME>.CFG` as it is
 made, and a failed save is shown on the screen rather than lost. CALIBRATE opens the
 console's calibration ([12](12-calibrating-a-console.md)).
 
@@ -108,6 +118,20 @@ knowing about it. The SDK's own screens (OPTIONS, calibration, the HUD's combina
 keep the console's buttons as wired, so a bad map can always be undone. For a game that
 remaps on its own terms: `uvm2_buttons_set(map)` (0 and no change when the map is not
 the four buttons once each) and `uvm2_buttons_remap(pressed)`.
+
+**The stick's up and down are in the map too (v1.4.17 on)**, for a game that names what they
+do (`uvm2_config_stick` / `uvm2_config_turn`: a hyperspace, a coin). CONTROLS shows them as
+two more lines, and any of the six -- four buttons, stick up, stick down -- can go on any of
+the console's buttons or the stick's up or down: press a button on a line to give it that
+button, or push the stick left/right to step the line through the inputs it may have (that is
+how an action goes onto the stick, since up and down move between the lines). The swap rule
+is the same, so every action keeps an input. Hyperspace on the stick down, for Victor's
+controllers, is one step. The map is saved as six digits once the stick's move (`123465` = up
+and down swapped), four while they are as wired. The stick's sideways movement is never
+mapped. The game reads the two actions with `uvm2_pad_actions()` (bit 4 up, bit 5 down,
+bits 0-3 its buttons), which applies the stick thresholds the turning ports always used: up
+above 40, down when pushed fully and until it comes back above -40.
+`#ifdef UVM2_HAS_STICK_MAP`.
 
 `#ifdef UVM2_HAS_BUTTON_MAP` lets a game name its buttons and still build against an
 SDK older than v1.4.11.

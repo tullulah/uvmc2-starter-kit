@@ -92,13 +92,18 @@ then cannot find their romset, so rebuild them.
 
 ```
 /                      the .um2 images, and any sound bundle a game ships (tacscan.vsm)
-roms/<game>.zip        romsets, read by the game itself at start-up
-config/uvm2.cfg        this CONSOLE's beam calibration (written by the wizard)
-config/<GAME>.CFG      per-game settings, for games that declare any
+.roms/<game>.zip       romsets, read by the game itself at start-up (hidden from the menu)
+.conf/uvm2.cfg         this CONSOLE's beam calibration (written by the wizard)
+.conf/<GAME>.CFG       per-game settings, for games that declare any
 ```
 
-`config/` is created the first time a calibration is saved. Do not copy a
-`config/uvm2.cfg` from another console: it describes that console's analog parts,
+Since v1.4.17 the folders start with a dot, so the multicart's menu does not list them, and a
+game finds its romset by name anywhere on the card (`.roms/`, `roms/`, then every folder,
+remembered once found). The old `roms/` and `config/` are still read, never written: a card set
+up for an older SDK keeps working.
+
+`.conf/` is created the first time a calibration is saved. Do not copy a
+`.conf/uvm2.cfg` from another console: it describes that console's analog parts,
 not yours. See [12](docs/12-calibrating-a-console.md).
 
 ### A game
@@ -106,7 +111,7 @@ not yours. See [12](docs/12-calibrating-a-console.md).
 Copy the `.um2` to the root of the card and pick it from the multicart menu.
 For `tacscan` also copy:
 
-* `game/tacscan/roms/tacscan.zip` → `roms/tacscan.zip` on the card
+* `game/tacscan/roms/tacscan.zip` → `.roms/tacscan.zip` on the card (or anywhere on it)
   (the game reads its ROM off the card at startup — it is not inside the image);
 * `game/tacscan/build/tacscan.vsm` → next to the `.um2`, for the sampled sound.
   It ships pre-built; `make snd` regenerates it from `samples/*.wav` and needs

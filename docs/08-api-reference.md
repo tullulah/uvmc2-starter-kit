@@ -105,6 +105,13 @@ const vpy_draw_stats_t *vpy_draw_stats(void);   /* frames, strokes, peak, shed, 
 int  vpy_sin_q14(int a), vpy_cos_q14(int a);    /* 4096 steps per turn, 16384 = 1.0 */
 ```
 
+**Colour (v1.4.17 on).** Built with `-DVPY_COLOR` (`VPY_HAS_COLOR` says this libvpy has it),
+`vpy_set_color(0xRRGGBB)` keeps the colour with each stroke through `vpy_flush`, and the UVMC2
+runtime carries it beside the command list (`SYS_SET_COLOR`, a table per list buffer) so it
+stays in step with the replay on core 1. The console still draws white; colour hardware and the
+IDE's emulator read it. Without `VPY_COLOR` nothing changes. `UVM2_COLOR_MARKS` (64 changes a
+frame) can be raised by a game that changes colour almost every vector.
+
 When the buffer is full, a stroke evicts a lower-priority one or is dropped. That
 is the game library choosing, not the SDK: the SDK draws what it is asked
 (invariant 4). It is always counted, so if `shed` or `dropped` is non-zero, the
@@ -989,7 +996,7 @@ struct uvm2_config {
     int32_t aspect_q8;    /* the screen's shape: x against y, 256 = 1:1 */
     int32_t win_x, win_y; /* what the tube shows, half extents in deflection units */
     int32_t bright_pct;   /* brightness gain, percent, 100 = as asked (game setting) */
-    int32_t buttons;      /* the button map, four digits: 1234 = as wired (game setting) */
+    int32_t buttons;      /* the button map: 1234 = as wired; six digits with the stick's up/down (v1.4.17) */
 };
 int  uvm2_config_load(void);
 int  uvm2_config_save(void);
@@ -1012,6 +1019,8 @@ extern volatile int32_t uvm2_setting_audio, uvm2_setting_bright, uvm2_setting_bu
 extern volatile int32_t uvm2_setting_audio_usb;      /* v1.4.15: with audio 0, 1 = USB headphones */
 int     uvm2_buttons_set(int32_t map);               /* 0 = not the four buttons once each */
 uint8_t uvm2_buttons_remap(uint8_t pressed);         /* console bits -> the game's */
+uint8_t uvm2_pad_actions(void);   /* v1.4.17: the game's six, bit 4 stick-up action, bit 5 down */
+int     uvm2_buttons_phys(int i); /* entry i's input: 0-3 buttons, 4 stick up, 5 stick down */
 int  uvm2_options_menu(void);                        /* the OPTIONS screen, from a game */
 void uvm2_intro(void);                               /* the Vectrex Studio card */
 #define UVM2_HAS_BUTTON_MAP 1                        /* v1.4.11 on */
@@ -1022,7 +1031,7 @@ game normally only calls `uvm2_config_game()` to declare which settings its menu
 should offer.
 
 **To calibrate a console**, hold buttons 2 and 3 and launch the game with 4: the
-wizard opens before the game. Button 4 saves to `config/uvm2.cfg`. What each
+wizard opens before the game. Button 4 saves to `.conf/uvm2.cfg`. What each
 screen shows and which field fixes what is in
 [12 — Calibrating a console](12-calibrating-a-console.md).
 
@@ -1032,8 +1041,10 @@ Two files, split by **whose** settings they are:
 
 | file | holds | written by |
 |---|---|---|
-| `config/uvm2.cfg` | the beam calibration (`scale` … `drift_y`): the console's, shared by every game | the calibration screen, when you save |
-| `config/<NAME>.cfg` | the game's own settings, layered on top of the console's | only the settings the game declared |
+| `.conf/uvm2.cfg` | the beam calibration (`scale` … `drift_y`) and the USB headphones' volume: the console's, shared by every game | the calibration screen, when you save; the volume 2 s after the headphones' buttons move it |
+| `.conf/<NAME>.cfg` | the game's own settings, layered on top of the console's | only the settings the game declared |
+
+(`.conf/` from v1.4.17, hidden from the multicart's menu; `config/` before, still read.)
 
 `name` is the game's 8.3 base name, no extension (`"TACSCAN"`). `settings` is an
 OR of:
@@ -1043,10 +1054,11 @@ OR of:
 | `UVM2_SETTING_HZ` | 1 | refresh 50 / 60 / 0 (free) → `hz` |
 | `UVM2_SETTING_MENU` | 2 | menu on power-up; with it off, button 4 still forces the menu → `start_menu` |
 | `UVM2_SETTING_ROTATE` | 4 | drawing rotated 90° for a horizontal arcade game → `rotate` |
-| `UVM2_SETTING_AUDIO` | 8 | sound out of the jack or the console's chip → `audio` |
+| `UVM2_SETTING_AUDIO` | 8 | sound out of the jack, the console's chip or USB headphones → `audio` (0, 1, 2) |
 | `UVM2_SETTING_BRIGHT` | 16 | a brightness gain in percent on every intensity → `bright_pct` |
 | `UVM2_SETTING_OPTIONS` | 32 | the SDK's OPTIONS screen before `main`; brings HZ, MENU, BRIGHT and BUTTONS |
 | `UVM2_SETTING_BUTTONS` | 64 | the button map and its CONTROLS line → `buttons` |
+| `UVM2_SETTING_TURN` | 128 | turn with the stick or two buttons, and the second layout's names (`uvm2_config_turn`) → `turn` |
 
 **Declare them in `uvm2_game_settings()`.** The runtime calls it before your `main`, so the
 game's file is layered on top of the console's before anything runs, and the OPTIONS

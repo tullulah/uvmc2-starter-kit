@@ -15,7 +15,7 @@ on the same machine. That is not a broken image. It is an uncalibrated console.
 
 ## Where the calibration lives
 
-`config/uvm2.cfg` on the SD card. Every game built with this SDK reads it at start
+`.conf/uvm2.cfg` on the SD card (`config/uvm2.cfg` before v1.4.17, still read). Every game built with this SDK reads it at start
 up, before the game's own `main` runs. Calibrate once from any game and every game
 on that console uses it.
 
@@ -74,7 +74,7 @@ saves every field, including those, so hand-edited values survive a save.
   measuring. Most of what it would fix is what ZERO fixes.
 
 Settings that belong to a **game** rather than the console (refresh, start-up
-menu, rotation, audio output) live in `config/<GAME>.CFG`, and only for games that
+menu, rotation, audio output) live in `.conf/<GAME>.CFG`, and only for games that
 declare them (`uvm2_config_game`, see [08](08-api-reference.md)).
 
 ---
@@ -93,7 +93,8 @@ before 2026-09-28 does not have it; rebuild it. Some games also open the wizard
 from their own menu (`uvm2_config_wizard()`), and those show their own settings as
 well.
 
-**On the debug cartridge** the BIOS's own menu opens it: **button 3 — calibration,
+**On the debug cartridge** (its BIOS reads `config/uvm2.cfg`, the folder of SDKs before
+v1.4.17, while games from v1.4.17 save to `.conf/`) the BIOS's own menu opens it: **button 3 — calibration,
 button 4 — start**, written under the list. Its BIOS loads `config/uvm2.cfg` at
 power-on and applies it to the menu and to every game. It can only *overwrite* that
 file, not create it, so the card needs `config/uvm2.cfg` (512 bytes; 511 spaces and
@@ -119,10 +120,10 @@ If the combination seems to do nothing, read `uvm2_boot_combo` over SWD
   field you are on, so one value can be judged on more than one figure. It is also
   the FIGURE field, which is not saved: what you calibrate against is a choice made
   at the screen, not a property of the console.
-* **Button 4** saves to `config/uvm2.cfg` and starts the game. Release it and
+* **Button 4** saves to `.conf/uvm2.cfg` and starts the game. Release it and
   press it again: the press that launched the game does not count.
 
-Saving creates `config/` and the file if they do not exist. If the save fails,
+Saving creates `.conf/` and the file if they do not exist. If the save fails,
 `uvm2_sd_error` says why ([06](06-sound-input-sd.md)).
 
 ---

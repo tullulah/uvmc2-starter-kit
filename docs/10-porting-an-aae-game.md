@@ -145,7 +145,8 @@ it at `0x400` is part of what makes the game fit.
 
 ## 4. The ROM table
 
-The romset lives on the SD card as `roms/<name>.zip` and is decompressed
+The romset lives on the SD card as `.roms/<name>.zip` (from v1.4.17 it is found by name
+anywhere on the card; `roms/` too) and is decompressed
 **directly onto `GI[]`** — no intermediate copy. The table says which zip member
 goes to which offset of which region:
 

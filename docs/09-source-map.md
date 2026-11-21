@@ -27,7 +27,7 @@ Sizes are rounded; they tell you whether a file is a glance or a session.
 | `uvm2_audio.c/.h` | 230 | `.vmus` / `.vsfx` sequencers, and the PSG mixer shadow. |
 | `uvm2_smp.c/.h` | 580+230 | Digitised samples through the volume DAC. **The `.h` carries the whole model**; read it, not the `.c`. |
 | `uvm2_sd.c/.h` | 690+110 | The card over the SPI0 peripheral at 12.5 MHz (`-DUVM2_SD_BITBANG` brings back the old bit-banged transport), and the API over FatFs (FAT12/16/32 + exFAT): whole files, slices, an open file for streaming, writes. |
-| `uvm2_romzip.c` | 100 | Reads `roms/<game>.zip` off the card and publishes the `'RMZ1'` descriptor. |
+| `uvm2_romzip.c` | 100 | Finds `<game>.zip` on the card (`.roms/`, `roms/`, then anywhere; v1.4.17), reads it and publishes the `'RMZ1'` descriptor. |
 | `uvm2_psram.c/.h` | 1150+220 | Brings up the 8 MB on CS1, plus three diagnostic probes. |
 | `uvm2_config.c/.h` | 370+145 | Per-**console** beam calibration, on the SD card. The `.h` explains every field. |
 | `uvm2_wizard.c` | 360 | **The calibration screen**: the text pattern for ZERO, the wheel and the two squares, the RINGS burst, FIGURE on button 1, and the buttons 2+3 check at launch. Read with [12](12-calibrating-a-console.md). |
