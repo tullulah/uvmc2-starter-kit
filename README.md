@@ -223,3 +223,27 @@ answers it, and `docs/08-api-reference.md` is the complete API.
   build. `stats.py`, `probe.sh`, `load.sh` and `release.sh` there talk to a
   console over SWD. They are compiled by hand; each one's header comment gives the command
   line.
+
+## 8. License
+
+The kit has two licenses, by directory:
+
+| part | license |
+|---|---|
+| the docs, the examples (`examples/`), `setup.sh`, the tools | **MIT**, © 2026 Daniel Ferrer: [LICENSE](LICENSE) |
+| `third_party/aae/` and the Tac/Scan example (`game/tacscan/`) | **GNU GPL v3.0**: [COPYING](third_party/aae/COPYING) |
+
+The SDK in `sdk/` is MIT and has its own notices, so **a game you build from the
+examples can use any license you like**.
+
+Tac/Scan is GPL because it is built on the AAE arcade emulator (Tim Cottrill,
+GPL-3.0), here in Malban's PiTrex port. **Two things in it are not covered by any
+license in this repository:**
+
+* early-MAME code (non-commercial license) and Neil Bradley's MZ80 (its own
+  restrictive terms);
+* Sega's ROMs and samples (`game/tacscan/roms/`, `game/tacscan/samples/`).
+
+So that example is for study, not for redistribution. Every component, its
+license and its credits are listed in
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
